@@ -1,0 +1,9 @@
+[package]
+
+name = "path_tree"
+version = "0.0.1"
+authors = ["Michael Sproul <micsproul@gmail.com>"]
+
+[lib]
+
+name = "path_tree"
