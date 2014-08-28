@@ -1,7 +1,7 @@
-Path Tree
-=========
+Generic Trie
+============
 
-Tree-like data structure for storing paths and associated data.
+This is a generic Trie implementation that uses a hash map to store child nodes. The Trie is keyed
+by lists of type `K`, which can be anything implementing `PartialEq`, `Eq`, `Hash` and `Clone`.
 
-Map paths like `["a", "b", "c", "d"]` onto vectors of data. Paths which aren't part of the tree map to
-the longest prefix of the path that is in the tree.
+For more information, see the documentation.

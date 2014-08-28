@@ -1,36 +1,127 @@
-///! A tree-like data structure for storing paths and associated data.
+//! Generic Trie implementation.
+//!
+//! Useful for hierarchical data.
 
-use std::fmt::{Show, Formatter, FormatError};
 use std::hash::Hash;
 use std::collections::hashmap::HashMap;
 
-pub struct Node<K, V> {
-    pub key: K,
+/// A Trie is recursively defined as a value and a map containing child Tries.
+///
+/// Typically, Tries are used to store strings, which can be thought of as lists of `char`s.
+/// Generalising this to any key type, a Trie is a data structure storing values for keys
+/// which are themselves lists. Let the parts of such a list-key be called "key fragments".
+/// In our representation of a Trie, `K` denotes the type of the key fragments.
+///
+/// The nesting of child Tries creates a tree structure which can be traversed by mapping
+/// key fragments onto nodes. In a Trie with `char` key fragments, the key `['a', 'b', 'c']`
+/// might correspond to something like this (warning: not real code).
+///
+/// ```ignore
+/// Trie {
+///     value: Some(0u),
+///     children: 'a' => Trie {
+///         value: Some(1u),
+///         children: 'b' => Trie {
+///             value: None,
+///             children: 'c' => Trie {
+///                 value: Some(3u),
+///                 children: Nil
+///             }
+///         }
+///     }
+/// }
+/// ```
+///
+/// Values are stored optionally at each node because inserting a value for a list-key only inserts
+/// a value for the last fragment of the key. The intermediate prefix nodes are created with value
+/// `None` if they do not exist already.
+///
+/// The above Trie could be created using the following sequence of operations:
+///
+/// ```ignore
+/// let trie: Trie<char, uint> = Trie::new();
+/// trie.insert(['a', 'b', 'c'], 3u);
+/// trie.insert([], 0u);
+/// trie.insert(['a'], 1u);
+/// ```
+///
+/// The order of insertion is never important.
+///
+/// One interesting thing about Tries is that every key is a *descendant* of the root, which itself
+/// has no key fragment. Although this is a rather trivial observation, it means that every key
+/// corresponds to a non-empty sequence of prefix nodes in the tree. This observation is the
+/// motivation for the `find_prefix_nodes` method, which returns the nodes corresponding to the longest
+/// prefix of a given key.
+///
+/// The empty list key, `[]`, always corresponds to the root node of the Trie.
+pub struct Trie<K, V> {
+    /// Node value.
     pub value: Option<V>,
-    pub children: HashMap<K, Node<K, V>>
+
+    /// Node children as a hashmap keyed by key fragments.
+    pub children: HashMap<K, Trie<K, V>>
 }
 
-impl<K, V> Node<K, V> where K: PartialEq + Eq + Hash + Clone {
-    pub fn new(key: K) -> Node<K, V> {
-        Node {
-            key: key,
+impl<K, V> Trie<K, V> where K: PartialEq + Eq + Hash + Clone {
+    /// Create a new Trie node with no value and an empty child map.
+    pub fn new() -> Trie<K, V> {
+        Trie {
             value: None,
             children: HashMap::new()
         }
     }
 
-    pub fn insert(&mut self, path: &[K], value: V) {
-        let current_node = path.iter().fold(self, |current_node, key| {
-            current_node.children.find_or_insert(key.clone(), Node::new(key.clone()))
+    /// Insert a key and value into the Trie.
+    ///
+    /// Returns `true` if the key did not already correspond to a value.
+    pub fn insert(&mut self, key: &[K], value: V) -> bool {
+        let key_node = key.iter().fold(self, |current_node, fragment| {
+            current_node.children.find_or_insert(fragment.clone(), Trie::new())
         });
-        current_node.value = Some(value);
+        let is_new_value = match key_node.value {
+            Some(_) => false,
+            None => true
+        };
+        key_node.value = Some(value);
+        is_new_value
     }
 
-    pub fn find_path(&self, path: &[K]) -> Vec<&Node<K, V>> {
+    /// Find a reference to a key's value, if it has one.
+    pub fn find(&self, key: &[K]) -> Option<&V> {
+        // Recursive base case, if the key is empty, return the node's value.
+        let fragment = match key.head() {
+            Some(head) => head,
+            None => return self.value.as_ref()
+        };
+
+        // Otherwise, recurse down the tree.
+        match self.children.find(fragment) {
+            Some(node) => node.find(key.slice_from(1)),
+            None => None
+        }
+    }
+
+    /// Find a mutable reference to a key's value, if it has one.
+    pub fn find_mut(&mut self, key: &[K]) -> Option<&mut V> {
+        // Recursive base case, if the key is empty, return the node's value.
+        let fragment = match key.head() {
+            Some(head) => head,
+            None => return self.value.as_mut()
+        };
+
+        // Otherwise, recurse down the tree.
+        match self.children.find_mut(fragment) {
+            Some(node) => node.find_mut(key.slice_from(1)),
+            None => None
+        }
+    }
+
+    /// Find the longest prefix of nodes which match the given key.
+    pub fn find_prefix_nodes(&self, key: &[K]) -> Vec<&Trie<K, V>> {
         let mut node_path = vec![self];
 
-        for key in path.iter() {
-            match node_path.last().unwrap().children.find(key) {
+        for fragment in key.iter() {
+            match node_path.last().unwrap().children.find(fragment) {
                 Some(node) => node_path.push(node),
                 None => break
             }
@@ -38,55 +129,30 @@ impl<K, V> Node<K, V> where K: PartialEq + Eq + Hash + Clone {
         node_path
     }
 
-    pub fn ancestor_value(&self, path: &[K]) -> Option<&V> {
-        let node_path = self.find_path(path);
+    /// Find the value of the nearest ancestor with a non-empty value, if one exists.
+    ///
+    /// If all ancestors have empty (`None`) values, `None` is returned.
+    pub fn find_ancestor(&self, key: &[K]) -> Option<&V> {
+        self.find_ancestor_node(key).and_then(|node| node.value.as_ref())
+    }
+
+    /// Find the nearest ancestor with a non-empty value, if one exists.
+    ///
+    /// If all ancestors have empty (`None`) values, `None` is returned.
+    pub fn find_ancestor_node(&self, key: &[K]) -> Option<&Trie<K, V>> {
+        let node_path = self.find_prefix_nodes(key);
 
         for node in node_path.iter().rev() {
             if node.value.is_some() {
-                return node.value.as_ref();
+                return Some(*node);
             }
         }
         None
     }
 }
 
-impl<K, V> Show for Node<K, V> where K: Show, V: Show {
-    fn fmt(&self, formatter: &mut Formatter) -> Result<(), FormatError> {
-        try!("Node { key: ".fmt(formatter));
-        try!(self.key.fmt(formatter));
-        try!(", value: ".fmt(formatter));
-        try!(self.value.fmt(formatter));
-        try!(" }".fmt(formatter));
-        Ok(())
-    }
-}
-
 #[cfg(test)]
 mod test {
-    use super::Node;
+    use super::Trie;
 
-    #[test]
-    fn path_finding() {
-        let mut root: Node<&'static str, uint> = Node::new("root");
-        root.insert(["a", "b", "c"], 3u);
-        root.insert(["a"], 1u);
-        root.insert(["a", "b"], 2u);
-        root.insert([], 0u);
-
-        let node_path = root.find_path(["a", "b", "c"]);
-        let results = [("root", 0u), ("a", 1), ("b", 2), ("c", 3)];
-        for (node, &(key, value)) in node_path.iter().zip(results.iter()) {
-            assert_eq!(node.key, key);
-            assert_eq!(node.value.unwrap(), value);
-        }
-    }
-
-    #[test]
-    fn ancestor_value() {
-        let mut root: Node<uint, uint> = Node::new(0u);
-        root.insert([1u, 2, 3], 3u);
-        root.insert([1u, 2, 3, 4, 5, 6], 6u);
-        root.insert([1u, 2, 3, 7, 8, 9], 9u);
-        assert_eq!(root.ancestor_value([1u, 2, 3, 4]), Some(&3u));
-    }
 }
