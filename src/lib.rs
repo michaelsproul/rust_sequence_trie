@@ -168,16 +168,16 @@ mod test {
     fn find() {
         let trie = make_trie();
         let data = [
-            (&[], Some(0u)),
-            (&['a'], Some(1u)),
-            (&['a', 'b'], None),
-            (&['a', 'b', 'c'], None),
-            (&['a', 'b', 'x'], None),
-            (&['a', 'b', 'c', 'd'], Some(4u)),
-            (&['a', 'b', 'x', 'y'], Some(25u)),
-            (&['b', 'x', 'y'], None)
+            (vec![], Some(0u)),
+            (vec!['a'], Some(1u)),
+            (vec!['a', 'b'], None),
+            (vec!['a', 'b', 'c'], None),
+            (vec!['a', 'b', 'x'], None),
+            (vec!['a', 'b', 'c', 'd'], Some(4u)),
+            (vec!['a', 'b', 'x', 'y'], Some(25u)),
+            (vec!['b', 'x', 'y'], None)
         ];
-        for &(key, value) in data.iter() {
+        for &(ref key, value) in data.iter() {
             assert_eq!(trie.find(key.as_slice()), value.as_ref());
         }
     }
@@ -194,18 +194,18 @@ mod test {
     fn find_ancestor() {
         let trie = make_trie();
         let data = [
-            (&[], 0u),
-            (&['a'], 1u),
-            (&['a', 'b'], 1u),
-            (&['a', 'b', 'c'], 1u),
-            (&['a', 'b', 'c', 'd'], 4u),
-            (&['a', 'b', 'x'], 1u),
-            (&['a', 'b', 'x', 'y'], 25u),
-            (&['p', 'q'], 0u),
-            (&['a', 'p', 'q'], 1u)
+            (vec![], 0u),
+            (vec!['a'], 1u),
+            (vec!['a', 'b'], 1u),
+            (vec!['a', 'b', 'c'], 1u),
+            (vec!['a', 'b', 'c', 'd'], 4u),
+            (vec!['a', 'b', 'x'], 1u),
+            (vec!['a', 'b', 'x', 'y'], 25u),
+            (vec!['p', 'q'], 0u),
+            (vec!['a', 'p', 'q'], 1u)
         ];
-        for &(key, value) in data.iter() {
-            assert_eq!(*trie.find_ancestor(key).unwrap(), value);
+        for &(ref key, value) in data.iter() {
+            assert_eq!(*trie.find_ancestor(key.as_slice()).unwrap(), value);
         }
     }
 
