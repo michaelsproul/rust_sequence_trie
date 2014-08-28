@@ -155,4 +155,69 @@ impl<K, V> Trie<K, V> where K: PartialEq + Eq + Hash + Clone {
 mod test {
     use super::Trie;
 
+    fn make_trie() -> Trie<char, uint> {
+        let mut trie = Trie::new();
+        trie.insert([], 0u);
+        trie.insert(['a'], 1u);
+        trie.insert(['a', 'b', 'c', 'd'], 4u);
+        trie.insert(['a', 'b', 'x', 'y'], 25u);
+        trie
+    }
+
+    #[test]
+    fn find() {
+        let trie = make_trie();
+        let data = [
+            (&[], Some(0u)),
+            (&['a'], Some(1u)),
+            (&['a', 'b'], None),
+            (&['a', 'b', 'c'], None),
+            (&['a', 'b', 'x'], None),
+            (&['a', 'b', 'c', 'd'], Some(4u)),
+            (&['a', 'b', 'x', 'y'], Some(25u)),
+            (&['b', 'x', 'y'], None)
+        ];
+        for &(key, value) in data.iter() {
+            assert_eq!(trie.find(key.as_slice()), value.as_ref());
+        }
+    }
+
+    #[test]
+    fn find_mut() {
+        let mut trie = make_trie();
+        let key = ['a', 'b', 'c', 'd'];
+        *trie.find_mut(key).unwrap() = 77u;
+        assert_eq!(*trie.find(key).unwrap(), 77u);
+    }
+
+    #[test]
+    fn find_ancestor() {
+        let trie = make_trie();
+        let data = [
+            (&[], 0u),
+            (&['a'], 1u),
+            (&['a', 'b'], 1u),
+            (&['a', 'b', 'c'], 1u),
+            (&['a', 'b', 'c', 'd'], 4u),
+            (&['a', 'b', 'x'], 1u),
+            (&['a', 'b', 'x', 'y'], 25u),
+            (&['p', 'q'], 0u),
+            (&['a', 'p', 'q'], 1u)
+        ];
+        for &(key, value) in data.iter() {
+            assert_eq!(*trie.find_ancestor(key).unwrap(), value);
+        }
+    }
+
+    #[test]
+    fn find_prefix_nodes() {
+        let trie = make_trie();
+        let prefix_nodes = trie.find_prefix_nodes(['a', 'b', 'z']);
+        // There should be 3 nodes: root, a, b.
+        assert_eq!(prefix_nodes.len(), 3);
+        let values = [Some(0u), Some(1u), None];
+        for (node, value) in prefix_nodes.iter().zip(values.iter()) {
+            assert_eq!(node.value, *value);
+        }
+    }
 }
