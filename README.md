@@ -8,4 +8,4 @@ by lists of type `K`, which can be anything implementing `PartialEq`, `Eq`, `Has
 
 For more information, see the [documentation][doc].
 
-[doc]: http://www.rust-ci.org/michaelsproul/rust-generic-trie/doc/trie
+[doc]: http://www.rust-ci.org/michaelsproul/rust-generic-trie/doc/trie/
