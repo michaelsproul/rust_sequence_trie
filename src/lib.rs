@@ -89,30 +89,38 @@ impl<K, V> Trie<K, V> where K: PartialEq + Eq + Hash + Clone {
 
     /// Find a reference to a key's value, if it has one.
     pub fn find(&self, key: &[K]) -> Option<&V> {
-        // Recursive base case, if the key is empty, return the node's value.
+        self.find_node(key).and_then(|node| node.value.as_ref())
+    }
+
+    pub fn find_node(&self, key: &[K]) -> Option<&Trie<K, V>> {
+        // Recursive base case, if the key is empty, return the node.
         let fragment = match key.head() {
             Some(head) => head,
-            None => return self.value.as_ref()
+            None => return Some(self)
         };
 
         // Otherwise, recurse down the tree.
         match self.children.find(fragment) {
-            Some(node) => node.find(key.slice_from(1)),
+            Some(node) => node.find_node(key.slice_from(1)),
             None => None
         }
     }
 
     /// Find a mutable reference to a key's value, if it has one.
     pub fn find_mut(&mut self, key: &[K]) -> Option<&mut V> {
-        // Recursive base case, if the key is empty, return the node's value.
+        self.find_mut_node(key).and_then(|node| node.value.as_mut())
+    }
+
+    pub fn find_mut_node(&mut self, key: &[K]) -> Option<&mut Trie<K, V>> {
+        // Recursive base case, if the key is empty, return the node.
         let fragment = match key.head() {
             Some(head) => head,
-            None => return self.value.as_mut()
+            None => return Some(self)
         };
 
         // Otherwise, recurse down the tree.
         match self.children.find_mut(fragment) {
-            Some(node) => node.find_mut(key.slice_from(1)),
+            Some(node) => node.find_mut_node(key.slice_from(1)),
             None => None
         }
     }
@@ -149,6 +157,54 @@ impl<K, V> Trie<K, V> where K: PartialEq + Eq + Hash + Clone {
             }
         }
         None
+    }
+
+    /// Call this on the Trie root.
+    pub fn remove(&mut self, key: &[K]) {
+        // Find the node corresponding to the key.
+        match self.find_mut_node(key) {
+            Some(node) => {
+                // Set its value to `None`.
+                node.value = None;
+
+                // If it has children, removal is complete.
+                if !node.children.is_empty() {
+                    return;
+                }
+            }
+            None => ()
+        };
+
+        self.remove_recursive(key);
+    }
+
+    /// Delete a path of value-less nodes.
+    fn remove_recursive(&mut self, key: &[K]) -> bool {
+        if self.value.is_none() && self.children.is_empty() {
+            return true;
+        }
+
+        let child_key = match key.head() {
+            Some(head) => head,
+            None => return false
+        };
+
+        // Recurse.
+        let delete_child = match self.children.find_mut(child_key) {
+            Some(child) => child.remove_recursive(key.slice_from(1)),
+            None => false
+        };
+
+        if delete_child {
+            self.children.remove(child_key);
+            if self.value.is_none() && self.children.is_empty() {
+                true
+            } else {
+                false
+            }
+        } else {
+            false
+        }
     }
 }
 
@@ -232,5 +288,48 @@ mod test {
         for (node, value) in prefix_nodes.iter().zip(values.iter()) {
             assert_eq!(node.value, *value);
         }
+    }
+
+    #[test]
+    fn remove() {
+        let mut trie= make_trie();
+        // If the node has children, its value should be set to `None`.
+        println!("Remove ['a']");
+        println!("Before: {}", trie);
+        trie.remove(['a']);
+        println!("After: {}", trie);
+        assert_eq!(trie.find_node(['a']).unwrap().value, None);
+
+        // Same as above, but for the root.
+        println!("Remove []");
+        println!("Before: {}", trie);
+        trie.remove([]);
+        println!("After: {}", trie);
+        assert_eq!(trie.find_node([]).unwrap().value, None);
+
+        // Check that lower levels are still accessible.
+        assert_eq!(trie.find(['a', 'b', 'c', 'd']), Some(&4u));
+
+        // Check that removing a leaf with an empty parent also
+        // deletes the parent.
+        println!("Remove ['a', 'b', 'c', 'd']");
+        println!("Before: {}", trie);
+        trie.remove(['a', 'b', 'c', 'd']);
+        println!("After: {}", trie);
+        assert!(trie.find_node(['a', 'b', 'c', 'd']).is_none());
+        assert!(trie.find_node(['a', 'b', 'c']).is_none());
+        assert!(trie.find_node(['a', 'b']).is_some());
+
+        // Bump off the rest of the Trie!
+        println!("Remove ['a', 'b', 'x', 'y']");
+        println!("Before: {}", trie);
+        trie.remove(['a', 'b', 'x', 'y']);
+        println!("After: {}", trie);
+        assert!(trie.find_node(['a', 'b', 'x', 'y']).is_none());
+        assert!(trie.find_node(['a', 'b', 'x']).is_none());
+        assert!(trie.find_node(['a', 'b']).is_none());
+        assert!(trie.find_node(['a']).is_none());
+        assert!(trie.value.is_none());
+        assert!(trie.children.is_empty());
     }
 }
