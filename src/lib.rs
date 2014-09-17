@@ -92,6 +92,7 @@ impl<K, V> Trie<K, V> where K: PartialEq + Eq + Hash + Clone {
         self.find_node(key).and_then(|node| node.value.as_ref())
     }
 
+    /// Find a reference to a key's node, if it has one.
     pub fn find_node(&self, key: &[K]) -> Option<&Trie<K, V>> {
         // Recursive base case, if the key is empty, return the node.
         let fragment = match key.head() {
@@ -111,6 +112,7 @@ impl<K, V> Trie<K, V> where K: PartialEq + Eq + Hash + Clone {
         self.find_mut_node(key).and_then(|node| node.value.as_mut())
     }
 
+    /// Find a mutable reference to a key's node, if it has one.
     pub fn find_mut_node(&mut self, key: &[K]) -> Option<&mut Trie<K, V>> {
         // Recursive base case, if the key is empty, return the node.
         let fragment = match key.head() {
@@ -159,7 +161,18 @@ impl<K, V> Trie<K, V> where K: PartialEq + Eq + Hash + Clone {
         None
     }
 
-    /// Call this on the Trie root.
+    /// Remove the node corresponding to the given key.
+    ///
+    /// This operation is like the reverse of `insert` in that
+    /// it also deletes extraneous nodes on the path from the root.
+    ///
+    /// If the key node has children, its value is set to `None` and no further
+    /// action is taken. If the key node is a leaf, then it and its ancestors with
+    /// empty values and no other children are deleted. Deletion proceeds up the tree
+    /// from the parent of the key node until a node with a non-empty value or children
+    /// is reached.
+    ///
+    /// If the key doesn't match a node in the Trie, no action is taken.
     pub fn remove(&mut self, key: &[K]) {
         // Find the node corresponding to the key.
         match self.find_mut_node(key) {
@@ -172,31 +185,43 @@ impl<K, V> Trie<K, V> where K: PartialEq + Eq + Hash + Clone {
                     return;
                 }
             }
-            None => ()
-        };
+            None => return
+        }
 
         self.remove_recursive(key);
     }
 
-    /// Delete a path of value-less nodes.
+    /// Recursive remove method that uses the call stack to safely and
+    /// efficiently delete the extraneous ancestors of the given key node.
+    ///
+    /// See `remove` above.
     fn remove_recursive(&mut self, key: &[K]) -> bool {
+        // If a node is reached with no children a no value, delete it.
+        // The leaf node needs to be pre-modified by `remove` for this to work.
         if self.value.is_none() && self.children.is_empty() {
             return true;
         }
 
-        let child_key = match key.head() {
+        let fragment = match key.head() {
             Some(head) => head,
+            // For a valid Trie, this branch is only reachable from the root node,
+            // and hence the return value is irrelevant.
             None => return false
         };
 
-        // Recurse.
-        let delete_child = match self.children.find_mut(child_key) {
+        // Find the child matching the first element of the key.
+        // Recurse on that child, with a shortened key.
+        // If no child is found, the Trie is invalid but we return false anyway.
+        let delete_child = match self.children.find_mut(fragment) {
             Some(child) => child.remove_recursive(key.slice_from(1)),
             None => false
         };
 
+        // If the child determined that it should be deleted, delete it from the hashmap.
         if delete_child {
-            self.children.remove(child_key);
+            self.children.remove(fragment);
+            // If the current node is now non-interesting, mark it for deletion
+            // by returning true.
             if self.value.is_none() && self.children.is_empty() {
                 true
             } else {
@@ -217,6 +242,15 @@ impl<K, V> Show for Trie<K, V> where
         try!(", children: ".fmt(fmt));
         try!(self.children.fmt(fmt));
         " }".fmt(fmt)
+    }
+}
+
+impl<K, V> Clone for Trie<K, V> where K: Clone, V: Clone {
+    fn clone(&self) -> Trie<K, V> {
+        Trie {
+            value: self.value.clone(),
+            children: self.children.clone()
+        }
     }
 }
 
