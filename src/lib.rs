@@ -4,6 +4,7 @@
 
 use std::hash::Hash;
 use std::collections::hashmap::HashMap;
+use std::fmt::{Formatter, FormatError, Show};
 
 /// A Trie is recursively defined as a value and a map containing child Tries.
 ///
@@ -148,6 +149,18 @@ impl<K, V> Trie<K, V> where K: PartialEq + Eq + Hash + Clone {
             }
         }
         None
+    }
+}
+
+impl<K, V> Show for Trie<K, V> where
+    K: PartialEq + Eq + Hash + Clone + Show,
+    V: Show {
+    fn fmt(&self, fmt: &mut Formatter) -> Result<(), FormatError> {
+        try!("Trie { value: ".fmt(fmt));
+        try!(self.value.fmt(fmt));
+        try!(", children: ".fmt(fmt));
+        try!(self.children.fmt(fmt));
+        " }".fmt(fmt)
     }
 }
 
