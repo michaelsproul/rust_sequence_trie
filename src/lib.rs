@@ -2,8 +2,10 @@
 //!
 //! Useful for hierarchical data.
 
+#![allow(while_true)]
+
 use std::hash::Hash;
-use std::collections::hashmap::HashMap;
+use std::collections::hashmap::{HashMap, Keys};
 use std::fmt::{Formatter, FormatError, Show};
 
 /// A Trie is recursively defined as a value and a map containing child Tries.
@@ -231,9 +233,61 @@ impl<K, V> Trie<K, V> where K: PartialEq + Eq + Hash + Clone {
             false
         }
     }
+
+    /// Return an iterator over all the keys in the collection.
+    pub fn keys<'a>(&'a self) -> TrieKeys<'a, K, V> {
+        TrieKeys {
+            stack: vec![IterItem { node: self, key: None, child_iter: self.children.keys() }]
+        }
+    }
 }
 
-impl<K, V> Show for Trie<K, V> where
+pub struct TrieKeys<'a, K: 'a, V: 'a> {
+    stack: Vec<IterItem<'a, K, V,>>
+}
+
+struct IterItem<'a, K: 'a, V: 'a> {
+    node: &'a Trie<K, V>,
+    key: Option<&'a K>,
+    child_iter: Keys<'a, K, Trie<K, V>>
+}
+
+impl<'a, K, V> Iterator<Vec<&'a K>> for TrieKeys<'a, K, V>
+where
+    K: PartialEq + Eq + Hash + Clone {
+    fn next(&mut self) -> Option<Vec<&'a K>> {
+        while true {
+            match self.stack.last().map(|x| x.node.children.is_empty()) {
+                Some(true) => {
+                    let result: Vec<&'a K> = self.stack.iter()
+                                                        .skip(1)
+                                                        .map(|x| x.key.unwrap())
+                                                        .collect();
+                    self.stack.pop();
+                    return Some(result);
+                },
+                Some(false) => {
+                    match self.stack.last_mut().unwrap().child_iter.next() {
+                        Some(child_key) => {
+                            let child = self.stack.last().unwrap().node.children.find(child_key).unwrap();
+                            self.stack.push(IterItem {
+                                node: child,
+                                key: Some(child_key),
+                                child_iter: child.children.keys()
+                            });
+                        }
+                        None => { self.stack.pop(); }
+                    }
+                },
+                None => return None
+            }
+        }
+        unreachable!();
+    }
+}
+
+impl<K, V> Show for Trie<K, V>
+where
     K: PartialEq + Eq + Hash + Clone + Show,
     V: Show {
     fn fmt(&self, fmt: &mut Formatter) -> Result<(), FormatError> {
@@ -257,6 +311,7 @@ impl<K, V> Clone for Trie<K, V> where K: Clone, V: Clone {
 #[cfg(test)]
 mod test {
     use super::Trie;
+    use std::collections::HashSet;
 
     fn make_trie() -> Trie<char, uint> {
         let mut trie = Trie::new();
@@ -365,5 +420,17 @@ mod test {
         assert!(trie.find_node(['a']).is_none());
         assert!(trie.value.is_none());
         assert!(trie.children.is_empty());
+    }
+
+    #[test]
+    fn key_iter() {
+        let trie = make_trie();
+        let obs_keys: HashSet<Vec<char>> = trie.keys().map(|v| -> Vec<char> {
+            v.iter().map(|&&x| x).collect()
+        }).collect();
+        let mut exp_keys: HashSet<Vec<char>> = HashSet::new();
+        exp_keys.insert(vec!['a', 'b', 'c', 'd']);
+        exp_keys.insert(vec!['a', 'b', 'x', 'y']);
+        assert_eq!(exp_keys, obs_keys);
     }
 }
