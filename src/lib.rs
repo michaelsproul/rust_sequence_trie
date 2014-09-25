@@ -104,7 +104,7 @@ impl<K, V> Trie<K, V> where K: PartialEq + Eq + Hash + Clone {
 
         // Otherwise, recurse down the tree.
         match self.children.find(fragment) {
-            Some(node) => node.find_node(key.slice_from(1)),
+            Some(node) => node.find_node(key[1..]),
             None => None
         }
     }
@@ -124,7 +124,7 @@ impl<K, V> Trie<K, V> where K: PartialEq + Eq + Hash + Clone {
 
         // Otherwise, recurse down the tree.
         match self.children.find_mut(fragment) {
-            Some(node) => node.find_mut_node(key.slice_from(1)),
+            Some(node) => node.find_mut_node(key[1..]),
             None => None
         }
     }
@@ -215,7 +215,7 @@ impl<K, V> Trie<K, V> where K: PartialEq + Eq + Hash + Clone {
         // Recurse on that child, with a shortened key.
         // If no child is found, the Trie is invalid but we return false anyway.
         let delete_child = match self.children.find_mut(fragment) {
-            Some(child) => child.remove_recursive(key.slice_from(1)),
+            Some(child) => child.remove_recursive(key[1..]),
             None => false
         };
 
@@ -336,7 +336,7 @@ mod test {
             (vec!['b', 'x', 'y'], None)
         ];
         for &(ref key, value) in data.iter() {
-            assert_eq!(trie.find(key.as_slice()), value.as_ref());
+            assert_eq!(trie.find(key[]), value.as_ref());
         }
     }
 
@@ -363,7 +363,7 @@ mod test {
             (vec!['a', 'p', 'q'], 1u)
         ];
         for &(ref key, value) in data.iter() {
-            assert_eq!(*trie.find_ancestor(key.as_slice()).unwrap(), value);
+            assert_eq!(*trie.find_ancestor(key[]).unwrap(), value);
         }
     }
 
