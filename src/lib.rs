@@ -2,10 +2,12 @@
 //!
 //! Useful for hierarchical data.
 
+#![feature(if_let)]
 #![allow(while_true)]
 
 use std::hash::Hash;
 use std::collections::hashmap::{HashMap, Keys};
+use std::collections::hashmap::{Vacant, Occupied};
 use std::fmt::{Formatter, FormatError, Show};
 
 /// A Trie is recursively defined as a value and a map containing child Tries.
@@ -79,7 +81,10 @@ impl<K, V> Trie<K, V> where K: PartialEq + Eq + Hash + Clone {
     /// Returns `true` if the key did not already correspond to a value.
     pub fn insert(&mut self, key: &[K], value: V) -> bool {
         let key_node = key.iter().fold(self, |current_node, fragment| {
-            current_node.children.find_or_insert(fragment.clone(), Trie::new())
+            match current_node.children.entry(fragment.clone()) {
+                Vacant(slot) => slot.set(Trie::new()),
+                Occupied(slot) => slot.into_mut()
+            }
         });
         let is_new_value = match key_node.value {
             Some(_) => false,
@@ -196,9 +201,11 @@ impl<K, V> Trie<K, V> where K: PartialEq + Eq + Hash + Clone {
     /// Recursive remove method that uses the call stack to safely and
     /// efficiently delete the extraneous ancestors of the given key node.
     ///
+    /// Return `true` if the node should be deleted.
+    ///
     /// See `remove` above.
     fn remove_recursive(&mut self, key: &[K]) -> bool {
-        // If a node is reached with no children a no value, delete it.
+        // If a node is reached with no children and no value, delete it.
         // The leaf node needs to be pre-modified by `remove` for this to work.
         if self.value.is_none() && self.children.is_empty() {
             return true;
@@ -214,21 +221,18 @@ impl<K, V> Trie<K, V> where K: PartialEq + Eq + Hash + Clone {
         // Find the child matching the first element of the key.
         // Recurse on that child, with a shortened key.
         // If no child is found, the Trie is invalid but we return false anyway.
-        let delete_child = match self.children.find_mut(fragment) {
-            Some(child) => child.remove_recursive(key[1..]),
-            None => false
-        };
+        let mut delete_child = false;
+        if let Occupied(mut entry) = self.children.entry(fragment.clone()) {
+            delete_child = entry.get_mut().remove_recursive(key[1..]);
 
-        // If the child determined that it should be deleted, delete it from the hashmap.
-        if delete_child {
-            self.children.remove(fragment);
-            // If the current node is now non-interesting, mark it for deletion
-            // by returning true.
-            if self.value.is_none() && self.children.is_empty() {
-                true
-            } else {
-                false
+            if delete_child {
+                // Move out of the entry.
+                entry.take();
             }
+        }
+
+        if delete_child && self.children.is_empty() && self.value.is_none() {
+            true
         } else {
             false
         }
