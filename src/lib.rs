@@ -59,6 +59,10 @@ use std::fmt::{Formatter, FormatError, Show};
 /// prefix of a given key.
 ///
 /// The empty list key, `[]`, always corresponds to the root node of the Trie.
+///
+/// # The Trie Invariant
+/// All leaf nodes have non-trivial values (not equal to `None`). This invariant is maintained by
+/// the insertion and removal methods and can be relied upon.
 pub struct Trie<K, V> {
     /// Node value.
     pub value: Option<V>,
@@ -176,62 +180,43 @@ impl<K, V> Trie<K, V> where K: PartialEq + Eq + Hash + Clone {
     /// If the key node has children, its value is set to `None` and no further
     /// action is taken. If the key node is a leaf, then it and its ancestors with
     /// empty values and no other children are deleted. Deletion proceeds up the tree
-    /// from the parent of the key node until a node with a non-empty value or children
-    /// is reached.
+    /// from the key node until a node with a non-empty value or children is reached.
     ///
     /// If the key doesn't match a node in the Trie, no action is taken.
     pub fn remove(&mut self, key: &[K]) {
-        // Find the node corresponding to the key.
-        match self.find_mut_node(key) {
-            Some(node) => {
-                // Set its value to `None`.
-                node.value = None;
-
-                // If it has children, removal is complete.
-                if !node.children.is_empty() {
-                    return;
-                }
-            }
-            None => return
-        }
-
         self.remove_recursive(key);
     }
 
     /// Recursive remove method that uses the call stack to safely and
-    /// efficiently delete the extraneous ancestors of the given key node.
+    /// efficiently remove a node and its extraneous ancestors.
     ///
     /// Return `true` if the node should be deleted.
     ///
     /// See `remove` above.
     fn remove_recursive(&mut self, key: &[K]) -> bool {
-        // If a node is reached with no children and no value, delete it.
-        // The leaf node needs to be pre-modified by `remove` for this to work.
-        if self.value.is_none() && self.children.is_empty() {
-            return true;
-        }
+        match key.head() {
+            // Base case: Leaf node, no key left to recurse on.
+            None => { self.value = None; },
 
-        let fragment = match key.head() {
-            Some(head) => head,
-            // For a valid Trie, this branch is only reachable from the root node,
-            // and hence the return value is irrelevant.
-            None => return false
-        };
+            // Recursive case: Inner node, delete children.
+            Some(fragment) => {
+                // Find the child entry in the node's hashmap.
+                if let Occupied(mut entry) = self.children.entry(fragment.clone()) {
+                    // Work out whether to delete the child by calling remove recursively.
+                    let delete_child = entry.get_mut().remove_recursive(key[1..]);
 
-        // Find the child matching the first element of the key.
-        // Recurse on that child, with a shortened key.
-        // If no child is found, the Trie is invalid but we return false anyway.
-        let mut delete_child = false;
-        if let Occupied(mut entry) = self.children.entry(fragment.clone()) {
-            delete_child = entry.get_mut().remove_recursive(key[1..]);
-
-            if delete_child {
-                // Move out of the entry.
-                entry.take();
+                    if delete_child {
+                        entry.take();
+                    }
+                }
+                // NB: If the child isn't found, false will be returned.
+                // The `self` node is either a leaf, with a non-trivial value, or an
+                // inner node (with children).
             }
         }
 
-        if delete_child && self.children.is_empty() && self.value.is_none() {
+        // If the node is childless and valueless, mark it for deletion.
+        if self.children.is_empty() && self.value.is_none() {
             true
         } else {
             false
