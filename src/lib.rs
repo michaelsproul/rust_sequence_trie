@@ -3,7 +3,6 @@
 //! Useful for hierarchical data.
 
 #![feature(if_let)]
-#![allow(while_true)]
 
 use std::hash::Hash;
 use std::collections::hashmap::{HashMap, Keys};
@@ -245,7 +244,7 @@ impl<'a, K, V> Iterator<Vec<&'a K>> for TrieKeys<'a, K, V>
 where
     K: PartialEq + Eq + Hash + Clone {
     fn next(&mut self) -> Option<Vec<&'a K>> {
-        while true {
+        loop {
             match self.stack.last().map(|x| x.node.children.is_empty()) {
                 Some(true) => {
                     let result: Vec<&'a K> = self.stack.iter()
@@ -271,7 +270,6 @@ where
                 None => return None
             }
         }
-        unreachable!();
     }
 }
 
