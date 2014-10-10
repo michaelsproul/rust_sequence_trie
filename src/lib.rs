@@ -2,7 +2,7 @@
 //!
 //! Useful for hierarchical data.
 
-#![feature(if_let)]
+#![feature(if_let, slicing_syntax)]
 
 use std::hash::Hash;
 use std::collections::hashmap::{HashMap, Keys};
