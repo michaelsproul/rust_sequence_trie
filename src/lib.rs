@@ -4,10 +4,14 @@
 
 #![feature(if_let, slicing_syntax)]
 
+extern crate test;
+
 use std::hash::Hash;
 use std::collections::hashmap::{HashMap, Keys};
 use std::collections::hashmap::{Vacant, Occupied};
 use std::fmt::{Formatter, FormatError, Show};
+
+use test::Bencher;
 
 /// A Trie is recursively defined as a value and a map containing child Tries.
 ///
@@ -419,5 +423,25 @@ mod test {
         exp_keys.insert(vec!['a', 'b', 'c', 'd']);
         exp_keys.insert(vec!['a', 'b', 'x', 'y']);
         assert_eq!(exp_keys, obs_keys);
+    }
+}
+
+#[cfg(test)]
+mod benchmark {
+    use super::Trie;
+    use std::collections::HashMap;
+
+    #[bench]
+    fn hashmap_u32_insert(b: &mut Bencher) {
+        let mut hashmap = HashMap::new();
+        let test_data: Vec<Vec<u32>> = Vec::from_fn(1024, |i| {
+            Vec::from_fn(8, |j| i * j)
+        });
+
+        b.iter(|| {
+            for key in test_data.iter() {
+                hashmap.insert(key[], 7u32);
+            }
+        });
     }
 }
