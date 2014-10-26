@@ -2,16 +2,14 @@
 //!
 //! Useful for hierarchical data.
 
-#![feature(if_let, slicing_syntax)]
+#![feature(if_let, slicing_syntax, macro_rules)]
 
-extern crate test;
+extern crate "test" as test_crate;
 
 use std::hash::Hash;
 use std::collections::hashmap::{HashMap, Keys};
 use std::collections::hashmap::{Vacant, Occupied};
 use std::fmt::{Formatter, FormatError, Show};
-
-use test::Bencher;
 
 /// A Trie is recursively defined as a value and a map containing child Tries.
 ///
@@ -430,18 +428,29 @@ mod test {
 mod benchmark {
     use super::Trie;
     use std::collections::HashMap;
+    use test_crate::Bencher;
 
-    #[bench]
-    fn hashmap_u32_insert(b: &mut Bencher) {
-        let mut hashmap = HashMap::new();
-        let test_data: Vec<Vec<u32>> = Vec::from_fn(1024, |i| {
-            Vec::from_fn(8, |j| i * j)
-        });
+    macro_rules! u32_benchmark(
+        ($map_constructor: expr, $test_id: ident, $num_keys: expr, $key_length: expr) => (
+            #[bench]
+            fn $test_id(b: &mut Bencher) {
+                let mut map = $map_constructor;
+                let test_data: Vec<Vec<u32>> = Vec::from_fn($num_keys, |i| {
+                    Vec::from_fn($key_length, |j| (i * j) as u32)
+                });
 
-        b.iter(|| {
-            for key in test_data.iter() {
-                hashmap.insert(key[], 7u32);
+                b.iter(|| {
+                    for key in test_data.iter() {
+                        map.insert(key[], 7u32);
+                    }
+                });
             }
-        });
-    }
+        )
+    )
+
+    u32_benchmark!(HashMap::new(), hashmap_k1024_l16, 1024, 16)
+    u32_benchmark!(Trie::new(), trie_k1024_l16, 1024, 16)
+
+    u32_benchmark!(HashMap::new(), hashmap_k64_l128, 64, 128)
+    u32_benchmark!(Trie::new(), trie_k64_l128, 64, 128)
 }
