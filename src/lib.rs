@@ -7,8 +7,7 @@
 extern crate "test" as test_crate;
 
 use std::hash::Hash;
-use std::collections::hashmap::{HashMap, Keys};
-use std::collections::hashmap::{Vacant, Occupied};
+use std::collections::hash_map::{HashMap, Keys, Vacant, Occupied};
 use std::fmt::{Formatter, FormatError, Show};
 
 /// A Trie is recursively defined as a value and a map containing child Tries.
