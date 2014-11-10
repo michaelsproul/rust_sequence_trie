@@ -112,7 +112,7 @@ impl<K, V> Trie<K, V> where K: PartialEq + Eq + Hash + Clone {
         };
 
         // Otherwise, recurse down the tree.
-        match self.children.find(fragment) {
+        match self.children.get(fragment) {
             Some(node) => node.find_node(key[1..]),
             None => None
         }
@@ -132,7 +132,7 @@ impl<K, V> Trie<K, V> where K: PartialEq + Eq + Hash + Clone {
         };
 
         // Otherwise, recurse down the tree.
-        match self.children.find_mut(fragment) {
+        match self.children.get_mut(fragment) {
             Some(node) => node.find_mut_node(key[1..]),
             None => None
         }
@@ -143,7 +143,7 @@ impl<K, V> Trie<K, V> where K: PartialEq + Eq + Hash + Clone {
         let mut node_path = vec![self];
 
         for fragment in key.iter() {
-            match node_path.last().unwrap().children.find(fragment) {
+            match node_path.last().unwrap().children.get(fragment) {
                 Some(node) => node_path.push(node),
                 None => break
             }
@@ -258,7 +258,7 @@ where
                 Some(false) => {
                     match self.stack.last_mut().unwrap().child_iter.next() {
                         Some(child_key) => {
-                            let child = self.stack.last().unwrap().node.children.find(child_key).unwrap();
+                            let child = self.stack.last().unwrap().node.children.get(child_key).unwrap();
                             self.stack.push(IterItem {
                                 node: child,
                                 key: Some(child_key),
