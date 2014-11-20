@@ -1,16 +1,14 @@
-//! Generic Trie implementation.
-//!
-//! Useful for hierarchical data.
+//! Sequence Trie.
 
 #![feature(if_let, slicing_syntax, macro_rules)]
 
 extern crate "test" as test_crate;
 
 use std::hash::Hash;
-use std::collections::hash_map::{HashMap, Keys, Vacant, Occupied};
+use std::collections::hash_map::{mod, HashMap, Vacant, Occupied};
 use std::fmt::{Formatter, FormatError, Show};
 
-/// A Trie is recursively defined as a value and a map containing child Tries.
+/// A `SequenceTrie` is recursively defined as a value and a map containing child Tries.
 ///
 /// Typically, Tries are used to store strings, which can be thought of as lists of `char`s.
 /// Generalising this to any key type, a Trie is a data structure storing values for keys
@@ -18,17 +16,19 @@ use std::fmt::{Formatter, FormatError, Show};
 /// In our representation of a Trie, `K` denotes the type of the key fragments.
 ///
 /// The nesting of child Tries creates a tree structure which can be traversed by mapping
-/// key fragments onto nodes. In a Trie with `char` key fragments, the key `['a', 'b', 'c']`
-/// might correspond to something like this (warning: not real code).
+/// key fragments onto nodes. The structure is similar to a k-ary tree, except that the children
+/// are stored in `HashMap`s, and there is no bound on the number of children a single node may
+/// have (effectively k = ∞). In a SequenceTrie with `char` key fragments, the key
+/// `['a', 'b', 'c']` might correspond to something like this (warning: not real code).
 ///
 /// ```ignore
-/// Trie {
+/// SequenceTrie {
 ///     value: Some(0u),
-///     children: 'a' => Trie {
+///     children: 'a' => SequenceTrie {
 ///         value: Some(1u),
-///         children: 'b' => Trie {
+///         children: 'b' => SequenceTrie {
 ///             value: None,
-///             children: 'c' => Trie {
+///             children: 'c' => SequenceTrie {
 ///                 value: Some(3u),
 ///                 children: Nil
 ///             }
@@ -41,10 +41,10 @@ use std::fmt::{Formatter, FormatError, Show};
 /// a value for the last fragment of the key. The intermediate prefix nodes are created with value
 /// `None` if they do not exist already.
 ///
-/// The above Trie could be created using the following sequence of operations:
+/// The above SequenceTrie could be created using the following sequence of operations:
 ///
 /// ```ignore
-/// let trie: Trie<char, uint> = Trie::new();
+/// let trie: SequenceTrie<char, uint> = SequenceTrie::new();
 /// trie.insert(['a', 'b', 'c'], 3u);
 /// trie.insert([], 0u);
 /// trie.insert(['a'], 1u);
@@ -60,33 +60,33 @@ use std::fmt::{Formatter, FormatError, Show};
 ///
 /// The empty list key, `[]`, always corresponds to the root node of the Trie.
 ///
-/// # The Trie Invariant
+/// # The Sequence Trie Invariant
 /// All leaf nodes have non-trivial values (not equal to `None`). This invariant is maintained by
 /// the insertion and removal methods and can be relied upon.
-pub struct Trie<K, V> {
+pub struct SequenceTrie<K, V> {
     /// Node value.
     pub value: Option<V>,
 
     /// Node children as a hashmap keyed by key fragments.
-    pub children: HashMap<K, Trie<K, V>>
+    pub children: HashMap<K, SequenceTrie<K, V>>
 }
 
-impl<K, V> Trie<K, V> where K: PartialEq + Eq + Hash + Clone {
-    /// Create a new Trie node with no value and an empty child map.
-    pub fn new() -> Trie<K, V> {
-        Trie {
+impl<K, V> SequenceTrie<K, V> where K: PartialEq + Eq + Hash + Clone {
+    /// Create a new SequenceTrie node with no value and an empty child map.
+    pub fn new() -> SequenceTrie<K, V> {
+        SequenceTrie {
             value: None,
             children: HashMap::new()
         }
     }
 
-    /// Insert a key and value into the Trie.
+    /// Insert a key and value into the SequenceTrie.
     ///
     /// Returns `true` if the key did not already correspond to a value.
     pub fn insert(&mut self, key: &[K], value: V) -> bool {
         let key_node = key.iter().fold(self, |current_node, fragment| {
             match current_node.children.entry(fragment.clone()) {
-                Vacant(slot) => slot.set(Trie::new()),
+                Vacant(slot) => slot.set(SequenceTrie::new()),
                 Occupied(slot) => slot.into_mut()
             }
         });
@@ -104,7 +104,7 @@ impl<K, V> Trie<K, V> where K: PartialEq + Eq + Hash + Clone {
     }
 
     /// Find a reference to a key's node, if it has one.
-    pub fn find_node(&self, key: &[K]) -> Option<&Trie<K, V>> {
+    pub fn find_node(&self, key: &[K]) -> Option<&SequenceTrie<K, V>> {
         // Recursive base case, if the key is empty, return the node.
         let fragment = match key.head() {
             Some(head) => head,
@@ -124,7 +124,7 @@ impl<K, V> Trie<K, V> where K: PartialEq + Eq + Hash + Clone {
     }
 
     /// Find a mutable reference to a key's node, if it has one.
-    pub fn find_mut_node(&mut self, key: &[K]) -> Option<&mut Trie<K, V>> {
+    pub fn find_mut_node(&mut self, key: &[K]) -> Option<&mut SequenceTrie<K, V>> {
         // Recursive base case, if the key is empty, return the node.
         let fragment = match key.head() {
             Some(head) => head,
@@ -139,7 +139,7 @@ impl<K, V> Trie<K, V> where K: PartialEq + Eq + Hash + Clone {
     }
 
     /// Find the longest prefix of nodes which match the given key.
-    pub fn find_prefix_nodes(&self, key: &[K]) -> Vec<&Trie<K, V>> {
+    pub fn find_prefix_nodes(&self, key: &[K]) -> Vec<&SequenceTrie<K, V>> {
         let mut node_path = vec![self];
 
         for fragment in key.iter() {
@@ -161,7 +161,7 @@ impl<K, V> Trie<K, V> where K: PartialEq + Eq + Hash + Clone {
     /// Find the nearest ancestor with a non-empty value, if one exists.
     ///
     /// If all ancestors have empty (`None`) values, `None` is returned.
-    pub fn find_ancestor_node(&self, key: &[K]) -> Option<&Trie<K, V>> {
+    pub fn find_ancestor_node(&self, key: &[K]) -> Option<&SequenceTrie<K, V>> {
         let node_path = self.find_prefix_nodes(key);
 
         for node in node_path.iter().rev() {
@@ -224,24 +224,27 @@ impl<K, V> Trie<K, V> where K: PartialEq + Eq + Hash + Clone {
     }
 
     /// Return an iterator over all the keys in the collection.
-    pub fn keys<'a>(&'a self) -> TrieKeys<'a, K, V> {
-        TrieKeys {
+    ///
+    /// Only nodes with values are included.
+    pub fn keys<'a>(&'a self) -> Keys<'a, K, V> {
+        Keys {
             stack: vec![IterItem { node: self, key: None, child_iter: self.children.keys() }]
         }
     }
 }
 
-pub struct TrieKeys<'a, K: 'a, V: 'a> {
+/// An iteterator over the keys of a `SequenceTrie`.
+pub struct Keys<'a, K: 'a, V: 'a> {
     stack: Vec<IterItem<'a, K, V,>>
 }
 
 struct IterItem<'a, K: 'a, V: 'a> {
-    node: &'a Trie<K, V>,
+    node: &'a SequenceTrie<K, V>,
     key: Option<&'a K>,
-    child_iter: Keys<'a, K, Trie<K, V>>
+    child_iter: hash_map::Keys<'a, K, SequenceTrie<K, V>>
 }
 
-impl<'a, K, V> Iterator<Vec<&'a K>> for TrieKeys<'a, K, V>
+impl<'a, K, V> Iterator<Vec<&'a K>> for Keys<'a, K, V>
 where
     K: PartialEq + Eq + Hash + Clone {
     fn next(&mut self) -> Option<Vec<&'a K>> {
@@ -274,7 +277,7 @@ where
     }
 }
 
-impl<K, V> Show for Trie<K, V>
+impl<K, V> Show for SequenceTrie<K, V>
 where
     K: PartialEq + Eq + Hash + Clone + Show,
     V: Show {
@@ -287,9 +290,9 @@ where
     }
 }
 
-impl<K, V> Clone for Trie<K, V> where K: Clone, V: Clone {
-    fn clone(&self) -> Trie<K, V> {
-        Trie {
+impl<K, V> Clone for SequenceTrie<K, V> where K: Clone, V: Clone {
+    fn clone(&self) -> SequenceTrie<K, V> {
+        SequenceTrie {
             value: self.value.clone(),
             children: self.children.clone()
         }
@@ -298,15 +301,15 @@ impl<K, V> Clone for Trie<K, V> where K: Clone, V: Clone {
 
 #[cfg(test)]
 mod test {
-    use super::Trie;
+    use super::SequenceTrie;
     use std::collections::HashSet;
 
-    fn make_trie() -> Trie<char, uint> {
-        let mut trie = Trie::new();
-        trie.insert([], 0u);
-        trie.insert(['a'], 1u);
-        trie.insert(['a', 'b', 'c', 'd'], 4u);
-        trie.insert(['a', 'b', 'x', 'y'], 25u);
+    fn make_trie() -> SequenceTrie<char, uint> {
+        let mut trie = SequenceTrie::new();
+        trie.insert(&[], 0u);
+        trie.insert(&['a'], 1u);
+        trie.insert(&['a', 'b', 'c', 'd'], 4u);
+        trie.insert(&['a', 'b', 'x', 'y'], 25u);
         trie
     }
 
@@ -332,8 +335,8 @@ mod test {
     fn find_mut() {
         let mut trie = make_trie();
         let key = ['a', 'b', 'c', 'd'];
-        *trie.find_mut(key).unwrap() = 77u;
-        assert_eq!(*trie.find(key).unwrap(), 77u);
+        *trie.find_mut(&key).unwrap() = 77u;
+        assert_eq!(*trie.find(&key).unwrap(), 77u);
     }
 
     #[test]
@@ -358,7 +361,7 @@ mod test {
     #[test]
     fn find_prefix_nodes() {
         let trie = make_trie();
-        let prefix_nodes = trie.find_prefix_nodes(['a', 'b', 'z']);
+        let prefix_nodes = trie.find_prefix_nodes(&['a', 'b', 'z']);
         // There should be 3 nodes: root, a, b.
         assert_eq!(prefix_nodes.len(), 3);
         let values = [Some(0u), Some(1u), None];
@@ -373,39 +376,39 @@ mod test {
         // If the node has children, its value should be set to `None`.
         println!("Remove ['a']");
         println!("Before: {}", trie);
-        trie.remove(['a']);
+        trie.remove(&['a']);
         println!("After: {}", trie);
-        assert_eq!(trie.find_node(['a']).unwrap().value, None);
+        assert_eq!(trie.find_node(&['a']).unwrap().value, None);
 
         // Same as above, but for the root.
         println!("Remove []");
         println!("Before: {}", trie);
-        trie.remove([]);
+        trie.remove(&[]);
         println!("After: {}", trie);
-        assert_eq!(trie.find_node([]).unwrap().value, None);
+        assert_eq!(trie.find_node(&[]).unwrap().value, None);
 
         // Check that lower levels are still accessible.
-        assert_eq!(trie.find(['a', 'b', 'c', 'd']), Some(&4u));
+        assert_eq!(trie.find(&['a', 'b', 'c', 'd']), Some(&4u));
 
         // Check that removing a leaf with an empty parent also
         // deletes the parent.
         println!("Remove ['a', 'b', 'c', 'd']");
         println!("Before: {}", trie);
-        trie.remove(['a', 'b', 'c', 'd']);
+        trie.remove(&['a', 'b', 'c', 'd']);
         println!("After: {}", trie);
-        assert!(trie.find_node(['a', 'b', 'c', 'd']).is_none());
-        assert!(trie.find_node(['a', 'b', 'c']).is_none());
-        assert!(trie.find_node(['a', 'b']).is_some());
+        assert!(trie.find_node(&['a', 'b', 'c', 'd']).is_none());
+        assert!(trie.find_node(&['a', 'b', 'c']).is_none());
+        assert!(trie.find_node(&['a', 'b']).is_some());
 
         // Bump off the rest of the Trie!
         println!("Remove ['a', 'b', 'x', 'y']");
         println!("Before: {}", trie);
-        trie.remove(['a', 'b', 'x', 'y']);
+        trie.remove(&['a', 'b', 'x', 'y']);
         println!("After: {}", trie);
-        assert!(trie.find_node(['a', 'b', 'x', 'y']).is_none());
-        assert!(trie.find_node(['a', 'b', 'x']).is_none());
-        assert!(trie.find_node(['a', 'b']).is_none());
-        assert!(trie.find_node(['a']).is_none());
+        assert!(trie.find_node(&['a', 'b', 'x', 'y']).is_none());
+        assert!(trie.find_node(&['a', 'b', 'x']).is_none());
+        assert!(trie.find_node(&['a', 'b']).is_none());
+        assert!(trie.find_node(&['a']).is_none());
         assert!(trie.value.is_none());
         assert!(trie.children.is_empty());
     }
@@ -425,7 +428,7 @@ mod test {
 
 #[cfg(test)]
 mod benchmark {
-    use super::Trie;
+    use super::SequenceTrie;
     use std::collections::HashMap;
     use test_crate::Bencher;
 
@@ -448,8 +451,8 @@ mod benchmark {
     )
 
     u32_benchmark!(HashMap::new(), hashmap_k1024_l16, 1024, 16)
-    u32_benchmark!(Trie::new(), trie_k1024_l16, 1024, 16)
+    u32_benchmark!(SequenceTrie::new(), trie_k1024_l16, 1024, 16)
 
     u32_benchmark!(HashMap::new(), hashmap_k64_l128, 64, 128)
-    u32_benchmark!(Trie::new(), trie_k64_l128, 64, 128)
+    u32_benchmark!(SequenceTrie::new(), trie_k64_l128, 64, 128)
 }

@@ -1,9 +1,9 @@
 [package]
 
-name = "trie"
+name = "sequence_trie"
 version = "0.0.1"
 authors = ["Michael Sproul <micsproul@gmail.com>"]
 
 [lib]
 
-name = "trie"
+name = "sequence_trie"

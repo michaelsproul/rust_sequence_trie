@@ -1,9 +1,9 @@
-extern crate trie;
+extern crate sequence_trie;
 
-use trie::Trie;
+use sequence_trie::SequenceTrie;
 
 fn main() {
-    let mut trie: Trie<&str, bool> = Trie::new();
+    let mut trie = SequenceTrie::<&str, bool>::new();
     trie.insert(&["wow", "cow"], true);
     trie.insert(&["wow", "this"], false);
     println!("{}", trie);
