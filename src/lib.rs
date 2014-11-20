@@ -55,7 +55,7 @@ use std::fmt::{Formatter, FormatError, Show};
 /// One interesting thing about Tries is that every key is a *descendant* of the root, which itself
 /// has no key fragment. Although this is a rather trivial observation, it means that every key
 /// corresponds to a non-empty sequence of prefix nodes in the tree. This observation is the
-/// motivation for the `find_prefix_nodes` method, which returns the nodes corresponding to the longest
+/// motivation for the `get_prefix_nodes` method, which returns the nodes corresponding to the longest
 /// prefix of a given key.
 ///
 /// The empty list key, `[]`, always corresponds to the root node of the Trie.
@@ -99,12 +99,12 @@ impl<K, V> SequenceTrie<K, V> where K: PartialEq + Eq + Hash + Clone {
     }
 
     /// Find a reference to a key's value, if it has one.
-    pub fn find(&self, key: &[K]) -> Option<&V> {
-        self.find_node(key).and_then(|node| node.value.as_ref())
+    pub fn get(&self, key: &[K]) -> Option<&V> {
+        self.get_node(key).and_then(|node| node.value.as_ref())
     }
 
     /// Find a reference to a key's node, if it has one.
-    pub fn find_node(&self, key: &[K]) -> Option<&SequenceTrie<K, V>> {
+    pub fn get_node(&self, key: &[K]) -> Option<&SequenceTrie<K, V>> {
         // Recursive base case, if the key is empty, return the node.
         let fragment = match key.head() {
             Some(head) => head,
@@ -113,18 +113,18 @@ impl<K, V> SequenceTrie<K, V> where K: PartialEq + Eq + Hash + Clone {
 
         // Otherwise, recurse down the tree.
         match self.children.get(fragment) {
-            Some(node) => node.find_node(key[1..]),
+            Some(node) => node.get_node(key[1..]),
             None => None
         }
     }
 
     /// Find a mutable reference to a key's value, if it has one.
-    pub fn find_mut(&mut self, key: &[K]) -> Option<&mut V> {
-        self.find_mut_node(key).and_then(|node| node.value.as_mut())
+    pub fn get_mut(&mut self, key: &[K]) -> Option<&mut V> {
+        self.get_mut_node(key).and_then(|node| node.value.as_mut())
     }
 
     /// Find a mutable reference to a key's node, if it has one.
-    pub fn find_mut_node(&mut self, key: &[K]) -> Option<&mut SequenceTrie<K, V>> {
+    pub fn get_mut_node(&mut self, key: &[K]) -> Option<&mut SequenceTrie<K, V>> {
         // Recursive base case, if the key is empty, return the node.
         let fragment = match key.head() {
             Some(head) => head,
@@ -133,13 +133,13 @@ impl<K, V> SequenceTrie<K, V> where K: PartialEq + Eq + Hash + Clone {
 
         // Otherwise, recurse down the tree.
         match self.children.get_mut(fragment) {
-            Some(node) => node.find_mut_node(key[1..]),
+            Some(node) => node.get_mut_node(key[1..]),
             None => None
         }
     }
 
     /// Find the longest prefix of nodes which match the given key.
-    pub fn find_prefix_nodes(&self, key: &[K]) -> Vec<&SequenceTrie<K, V>> {
+    pub fn get_prefix_nodes(&self, key: &[K]) -> Vec<&SequenceTrie<K, V>> {
         let mut node_path = vec![self];
 
         for fragment in key.iter() {
@@ -154,15 +154,15 @@ impl<K, V> SequenceTrie<K, V> where K: PartialEq + Eq + Hash + Clone {
     /// Find the value of the nearest ancestor with a non-empty value, if one exists.
     ///
     /// If all ancestors have empty (`None`) values, `None` is returned.
-    pub fn find_ancestor(&self, key: &[K]) -> Option<&V> {
-        self.find_ancestor_node(key).and_then(|node| node.value.as_ref())
+    pub fn get_ancestor(&self, key: &[K]) -> Option<&V> {
+        self.get_ancestor_node(key).and_then(|node| node.value.as_ref())
     }
 
     /// Find the nearest ancestor with a non-empty value, if one exists.
     ///
     /// If all ancestors have empty (`None`) values, `None` is returned.
-    pub fn find_ancestor_node(&self, key: &[K]) -> Option<&SequenceTrie<K, V>> {
-        let node_path = self.find_prefix_nodes(key);
+    pub fn get_ancestor_node(&self, key: &[K]) -> Option<&SequenceTrie<K, V>> {
+        let node_path = self.get_prefix_nodes(key);
 
         for node in node_path.iter().rev() {
             if node.value.is_some() {
@@ -314,7 +314,7 @@ mod test {
     }
 
     #[test]
-    fn find() {
+    fn get() {
         let trie = make_trie();
         let data = [
             (vec![], Some(0u)),
@@ -327,20 +327,20 @@ mod test {
             (vec!['b', 'x', 'y'], None)
         ];
         for &(ref key, value) in data.iter() {
-            assert_eq!(trie.find(key[]), value.as_ref());
+            assert_eq!(trie.get(key[]), value.as_ref());
         }
     }
 
     #[test]
-    fn find_mut() {
+    fn get_mut() {
         let mut trie = make_trie();
         let key = ['a', 'b', 'c', 'd'];
-        *trie.find_mut(&key).unwrap() = 77u;
-        assert_eq!(*trie.find(&key).unwrap(), 77u);
+        *trie.get_mut(&key).unwrap() = 77u;
+        assert_eq!(*trie.get(&key).unwrap(), 77u);
     }
 
     #[test]
-    fn find_ancestor() {
+    fn get_ancestor() {
         let trie = make_trie();
         let data = [
             (vec![], 0u),
@@ -354,14 +354,14 @@ mod test {
             (vec!['a', 'p', 'q'], 1u)
         ];
         for &(ref key, value) in data.iter() {
-            assert_eq!(*trie.find_ancestor(key[]).unwrap(), value);
+            assert_eq!(*trie.get_ancestor(key[]).unwrap(), value);
         }
     }
 
     #[test]
-    fn find_prefix_nodes() {
+    fn get_prefix_nodes() {
         let trie = make_trie();
-        let prefix_nodes = trie.find_prefix_nodes(&['a', 'b', 'z']);
+        let prefix_nodes = trie.get_prefix_nodes(&['a', 'b', 'z']);
         // There should be 3 nodes: root, a, b.
         assert_eq!(prefix_nodes.len(), 3);
         let values = [Some(0u), Some(1u), None];
@@ -378,17 +378,17 @@ mod test {
         println!("Before: {}", trie);
         trie.remove(&['a']);
         println!("After: {}", trie);
-        assert_eq!(trie.find_node(&['a']).unwrap().value, None);
+        assert_eq!(trie.get_node(&['a']).unwrap().value, None);
 
         // Same as above, but for the root.
         println!("Remove []");
         println!("Before: {}", trie);
         trie.remove(&[]);
         println!("After: {}", trie);
-        assert_eq!(trie.find_node(&[]).unwrap().value, None);
+        assert_eq!(trie.get_node(&[]).unwrap().value, None);
 
         // Check that lower levels are still accessible.
-        assert_eq!(trie.find(&['a', 'b', 'c', 'd']), Some(&4u));
+        assert_eq!(trie.get(&['a', 'b', 'c', 'd']), Some(&4u));
 
         // Check that removing a leaf with an empty parent also
         // deletes the parent.
@@ -396,19 +396,19 @@ mod test {
         println!("Before: {}", trie);
         trie.remove(&['a', 'b', 'c', 'd']);
         println!("After: {}", trie);
-        assert!(trie.find_node(&['a', 'b', 'c', 'd']).is_none());
-        assert!(trie.find_node(&['a', 'b', 'c']).is_none());
-        assert!(trie.find_node(&['a', 'b']).is_some());
+        assert!(trie.get_node(&['a', 'b', 'c', 'd']).is_none());
+        assert!(trie.get_node(&['a', 'b', 'c']).is_none());
+        assert!(trie.get_node(&['a', 'b']).is_some());
 
         // Bump off the rest of the Trie!
         println!("Remove ['a', 'b', 'x', 'y']");
         println!("Before: {}", trie);
         trie.remove(&['a', 'b', 'x', 'y']);
         println!("After: {}", trie);
-        assert!(trie.find_node(&['a', 'b', 'x', 'y']).is_none());
-        assert!(trie.find_node(&['a', 'b', 'x']).is_none());
-        assert!(trie.find_node(&['a', 'b']).is_none());
-        assert!(trie.find_node(&['a']).is_none());
+        assert!(trie.get_node(&['a', 'b', 'x', 'y']).is_none());
+        assert!(trie.get_node(&['a', 'b', 'x']).is_none());
+        assert!(trie.get_node(&['a', 'b']).is_none());
+        assert!(trie.get_node(&['a']).is_none());
         assert!(trie.value.is_none());
         assert!(trie.children.is_empty());
     }
