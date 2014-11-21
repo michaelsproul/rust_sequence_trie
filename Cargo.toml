@@ -2,7 +2,15 @@
 
 name = "sequence_trie"
 version = "0.0.1"
+
 authors = ["Michael Sproul <micsproul@gmail.com>"]
+
+description = "Trie-like data-structure for storing sequences of values."
+documentation = "http://gnuhacks.com/rust/sequence_trie/"
+repository = "https://github.com/michaelsproul/rust-sequence-trie"
+readme = "README.md"
+keywords = ["trie", "tree", "hash", "data-structure", "collection"]
+license = "GPL-3.0+"
 
 [lib]
 

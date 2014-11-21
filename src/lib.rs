@@ -6,7 +6,7 @@ extern crate "test" as test_crate;
 
 use std::hash::Hash;
 use std::collections::hash_map::{mod, HashMap, Vacant, Occupied};
-use std::fmt::{Formatter, FormatError, Show};
+use std::fmt::{mod, Formatter, Show};
 
 /// A `SequenceTrie` is recursively defined as a value and a map containing child Tries.
 ///
@@ -281,7 +281,7 @@ impl<K, V> Show for SequenceTrie<K, V>
 where
     K: PartialEq + Eq + Hash + Clone + Show,
     V: Show {
-    fn fmt(&self, fmt: &mut Formatter) -> Result<(), FormatError> {
+    fn fmt(&self, fmt: &mut Formatter) -> Result<(), fmt::Error> {
         try!("Trie { value: ".fmt(fmt));
         try!(self.value.fmt(fmt));
         try!(", children: ".fmt(fmt));
