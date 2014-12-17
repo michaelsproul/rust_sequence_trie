@@ -1,6 +1,6 @@
 //! Sequence Trie.
 
-#![feature(if_let, slicing_syntax, macro_rules)]
+#![feature(slicing_syntax, macro_rules)]
 
 extern crate "test" as test_crate;
 
