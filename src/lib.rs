@@ -432,7 +432,7 @@ mod benchmark {
     use std::collections::HashMap;
     use test_crate::Bencher;
 
-    macro_rules! u32_benchmark(
+    macro_rules! u32_benchmark {
         ($map_constructor: expr, $test_id: ident, $num_keys: expr, $key_length: expr) => (
             #[bench]
             fn $test_id(b: &mut Bencher) {
@@ -448,11 +448,11 @@ mod benchmark {
                 });
             }
         )
-    )
+    }
 
-    u32_benchmark!(HashMap::new(), hashmap_k1024_l16, 1024, 16)
-    u32_benchmark!(SequenceTrie::new(), trie_k1024_l16, 1024, 16)
+    u32_benchmark! { HashMap::new(), hashmap_k1024_l16, 1024, 16 }
+    u32_benchmark! {SequenceTrie::new(), trie_k1024_l16, 1024, 16 }
 
-    u32_benchmark!(HashMap::new(), hashmap_k64_l128, 64, 128)
-    u32_benchmark!(SequenceTrie::new(), trie_k64_l128, 64, 128)
+    u32_benchmark! { HashMap::new(), hashmap_k64_l128, 64, 128 }
+    u32_benchmark! { SequenceTrie::new(), trie_k64_l128, 64, 128 }
 }
