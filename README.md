@@ -9,4 +9,4 @@ I'm still undecided about what to call this data-structure, as it's kind of half
 
 For more information, see the [documentation][doc].
 
-[doc]: http://gnuhacks.com/rust/sequence_trie/
+[doc]: http://sproul.io/rust/sequence_trie/

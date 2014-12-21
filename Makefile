@@ -1,7 +1,7 @@
 # Documentation upload Makefile.
 
 USER=michael
-HOST=gnuhacks.com
+HOST=sproul.io
 DIR=/srv/http/gnuhacks/rust
 
 doc-upload: target/doc/sequence_trie
