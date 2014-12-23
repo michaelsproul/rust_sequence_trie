@@ -5,7 +5,7 @@
 extern crate "test" as test_crate;
 
 use std::hash::Hash;
-use std::collections::hash_map::{mod, HashMap, Vacant, Occupied};
+use std::collections::hash_map::{mod, HashMap, Entry};
 use std::fmt::{mod, Formatter, Show};
 
 /// A `SequenceTrie` is recursively defined as a value and a map containing child Tries.
@@ -86,8 +86,8 @@ impl<K, V> SequenceTrie<K, V> where K: PartialEq + Eq + Hash + Clone {
     pub fn insert(&mut self, key: &[K], value: V) -> bool {
         let key_node = key.iter().fold(self, |current_node, fragment| {
             match current_node.children.entry(fragment.clone()) {
-                Vacant(slot) => slot.set(SequenceTrie::new()),
-                Occupied(slot) => slot.into_mut()
+                Entry::Vacant(slot) => slot.set(SequenceTrie::new()),
+                Entry::Occupied(slot) => slot.into_mut()
             }
         });
         let is_new_value = match key_node.value {
@@ -201,7 +201,7 @@ impl<K, V> SequenceTrie<K, V> where K: PartialEq + Eq + Hash + Clone {
             // Recursive case: Inner node, delete children.
             Some(fragment) => {
                 // Find the child entry in the node's hashmap.
-                if let Occupied(mut entry) = self.children.entry(fragment.clone()) {
+                if let Entry::Occupied(mut entry) = self.children.entry(fragment.clone()) {
                     // Work out whether to delete the child by calling remove recursively.
                     let delete_child = entry.get_mut().remove_recursive(key[1..]);
 
