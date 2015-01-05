@@ -1,12 +1,12 @@
 //! Sequence Trie.
 
-#![feature(slicing_syntax, macro_rules)]
+#![feature(slicing_syntax, macro_rules, associated_types)]
 
 extern crate "test" as test_crate;
 
 use std::hash::Hash;
-use std::collections::hash_map::{mod, HashMap, Entry};
-use std::fmt::{mod, Formatter, Show};
+use std::collections::hash_map::{self, HashMap, Entry};
+use std::fmt::{self, Formatter, Show};
 
 /// A `SequenceTrie` is recursively defined as a value and a map containing child Tries.
 ///
@@ -106,7 +106,7 @@ impl<K, V> SequenceTrie<K, V> where K: PartialEq + Eq + Hash + Clone {
     /// Find a reference to a key's node, if it has one.
     pub fn get_node(&self, key: &[K]) -> Option<&SequenceTrie<K, V>> {
         // Recursive base case, if the key is empty, return the node.
-        let fragment = match key.head() {
+        let fragment = match key.first() {
             Some(head) => head,
             None => return Some(self)
         };
@@ -126,7 +126,7 @@ impl<K, V> SequenceTrie<K, V> where K: PartialEq + Eq + Hash + Clone {
     /// Find a mutable reference to a key's node, if it has one.
     pub fn get_mut_node(&mut self, key: &[K]) -> Option<&mut SequenceTrie<K, V>> {
         // Recursive base case, if the key is empty, return the node.
-        let fragment = match key.head() {
+        let fragment = match key.first() {
             Some(head) => head,
             None => return Some(self)
         };
@@ -194,7 +194,7 @@ impl<K, V> SequenceTrie<K, V> where K: PartialEq + Eq + Hash + Clone {
     ///
     /// See `remove` above.
     fn remove_recursive(&mut self, key: &[K]) -> bool {
-        match key.head() {
+        match key.first() {
             // Base case: Leaf node, no key left to recurse on.
             None => { self.value = None; },
 
@@ -244,9 +244,10 @@ struct IterItem<'a, K: 'a, V: 'a> {
     child_iter: hash_map::Keys<'a, K, SequenceTrie<K, V>>
 }
 
-impl<'a, K, V> Iterator<Vec<&'a K>> for Keys<'a, K, V>
+impl<'a, K, V> Iterator for Keys<'a, K, V>
 where
     K: PartialEq + Eq + Hash + Clone {
+    type Item = Vec<&'a K>;
     fn next(&mut self) -> Option<Vec<&'a K>> {
         loop {
             match self.stack.last().map(|x| x.node.children.is_empty()) {
