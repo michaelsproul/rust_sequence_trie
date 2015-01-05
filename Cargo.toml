@@ -6,7 +6,7 @@ version = "0.0.4"
 authors = ["Michael Sproul <micsproul@gmail.com>"]
 
 description = "Trie-like data-structure for storing sequences of values."
-documentation = "http://gnuhacks.com/rust/sequence_trie/"
+documentation = "http://sproul.io/rust/sequence_trie/"
 repository = "https://github.com/michaelsproul/rust-sequence-trie"
 readme = "README.md"
 keywords = ["trie", "tree", "hash", "data-structure", "collection"]
