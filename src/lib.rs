@@ -85,8 +85,8 @@ impl<K, V> SequenceTrie<K, V> where K: PartialEq + Eq + Hash + Clone {
     /// Returns `true` if the key did not already correspond to a value.
     pub fn insert(&mut self, key: &[K], value: V) -> bool {
         let key_node = key.iter().fold(self, |current_node, fragment| {
-            match current_node.children.entry(fragment.clone()) {
-                Entry::Vacant(slot) => slot.set(SequenceTrie::new()),
+            match current_node.children.entry(fragment) {
+                Entry::Vacant(slot) => slot.insert(SequenceTrie::new()),
                 Entry::Occupied(slot) => slot.into_mut()
             }
         });
@@ -201,12 +201,12 @@ impl<K, V> SequenceTrie<K, V> where K: PartialEq + Eq + Hash + Clone {
             // Recursive case: Inner node, delete children.
             Some(fragment) => {
                 // Find the child entry in the node's hashmap.
-                if let Entry::Occupied(mut entry) = self.children.entry(fragment.clone()) {
+                if let Entry::Occupied(mut entry) = self.children.entry(fragment) {
                     // Work out whether to delete the child by calling remove recursively.
                     let delete_child = entry.get_mut().remove_recursive(key[1..]);
 
                     if delete_child {
-                        entry.take();
+                        entry.remove();
                     }
                 }
                 // NB: If the child isn't found, false will be returned.
@@ -438,9 +438,15 @@ mod benchmark {
             #[bench]
             fn $test_id(b: &mut Bencher) {
                 let mut map = $map_constructor;
-                let test_data: Vec<Vec<u32>> = Vec::from_fn($num_keys, |i| {
-                    Vec::from_fn($key_length, |j| (i * j) as u32)
-                });
+                let mut test_data = Vec::<Vec<u32>>::with_capacity($num_keys);
+                for i in range(0, $num_keys) {
+                    let mut key = Vec::<u32>::with_capacity($key_length);
+                    for j in range(0, $key_length) {
+                        key[j] = (i * j) as u32;
+                    }
+
+                    test_data[i] = key;
+                }
 
                 b.iter(|| {
                     for key in test_data.iter() {
@@ -452,7 +458,7 @@ mod benchmark {
     }
 
     u32_benchmark! { HashMap::new(), hashmap_k1024_l16, 1024, 16 }
-    u32_benchmark! {SequenceTrie::new(), trie_k1024_l16, 1024, 16 }
+    u32_benchmark! { SequenceTrie::new(), trie_k1024_l16, 1024, 16 }
 
     u32_benchmark! { HashMap::new(), hashmap_k64_l128, 64, 128 }
     u32_benchmark! { SequenceTrie::new(), trie_k64_l128, 64, 128 }
