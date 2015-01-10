@@ -1,11 +1,12 @@
 //! Sequence Trie.
 
-#![feature(slicing_syntax, macro_rules, associated_types)]
+#![feature(slicing_syntax)]
+#![allow(unstable)]
 
 extern crate "test" as test_crate;
 
 use std::hash::Hash;
-use std::collections::hash_map::{self, HashMap, Entry};
+use std::collections::hash_map::{self, HashMap, Hasher, Entry};
 use std::fmt::{self, Formatter, Show};
 
 /// A `SequenceTrie` is recursively defined as a value and a map containing child Tries.
@@ -71,7 +72,7 @@ pub struct SequenceTrie<K, V> {
     pub children: HashMap<K, SequenceTrie<K, V>>
 }
 
-impl<K, V> SequenceTrie<K, V> where K: PartialEq + Eq + Hash + Clone {
+impl<K, V> SequenceTrie<K, V> where K: PartialEq + Eq + Hash<Hasher> + Clone {
     /// Create a new SequenceTrie node with no value and an empty child map.
     pub fn new() -> SequenceTrie<K, V> {
         SequenceTrie {
@@ -85,7 +86,7 @@ impl<K, V> SequenceTrie<K, V> where K: PartialEq + Eq + Hash + Clone {
     /// Returns `true` if the key did not already correspond to a value.
     pub fn insert(&mut self, key: &[K], value: V) -> bool {
         let key_node = key.iter().fold(self, |current_node, fragment| {
-            match current_node.children.entry(fragment) {
+            match current_node.children.entry(fragment.clone()) {
                 Entry::Vacant(slot) => slot.insert(SequenceTrie::new()),
                 Entry::Occupied(slot) => slot.into_mut()
             }
@@ -113,7 +114,7 @@ impl<K, V> SequenceTrie<K, V> where K: PartialEq + Eq + Hash + Clone {
 
         // Otherwise, recurse down the tree.
         match self.children.get(fragment) {
-            Some(node) => node.get_node(key[1..]),
+            Some(node) => node.get_node(key.slice_from(1)),
             None => None
         }
     }
@@ -133,7 +134,7 @@ impl<K, V> SequenceTrie<K, V> where K: PartialEq + Eq + Hash + Clone {
 
         // Otherwise, recurse down the tree.
         match self.children.get_mut(fragment) {
-            Some(node) => node.get_mut_node(key[1..]),
+            Some(node) => node.get_mut_node(key.slice_from(1)),
             None => None
         }
     }
@@ -201,9 +202,9 @@ impl<K, V> SequenceTrie<K, V> where K: PartialEq + Eq + Hash + Clone {
             // Recursive case: Inner node, delete children.
             Some(fragment) => {
                 // Find the child entry in the node's hashmap.
-                if let Entry::Occupied(mut entry) = self.children.entry(fragment) {
+                if let Entry::Occupied(mut entry) = self.children.entry(fragment.clone()) {
                     // Work out whether to delete the child by calling remove recursively.
-                    let delete_child = entry.get_mut().remove_recursive(key[1..]);
+                    let delete_child = entry.get_mut().remove_recursive(key.slice_from(1));
 
                     if delete_child {
                         entry.remove();
@@ -246,7 +247,7 @@ struct IterItem<'a, K: 'a, V: 'a> {
 
 impl<'a, K, V> Iterator for Keys<'a, K, V>
 where
-    K: PartialEq + Eq + Hash + Clone {
+    K: PartialEq + Eq + Hash<Hasher> + Clone {
     type Item = Vec<&'a K>;
     fn next(&mut self) -> Option<Vec<&'a K>> {
         loop {
@@ -280,7 +281,7 @@ where
 
 impl<K, V> Show for SequenceTrie<K, V>
 where
-    K: PartialEq + Eq + Hash + Clone + Show,
+    K: PartialEq + Eq + Hash<Hasher> + Clone + Show,
     V: Show {
     fn fmt(&self, fmt: &mut Formatter) -> Result<(), fmt::Error> {
         try!("Trie { value: ".fmt(fmt));
@@ -305,12 +306,12 @@ mod test {
     use super::SequenceTrie;
     use std::collections::HashSet;
 
-    fn make_trie() -> SequenceTrie<char, uint> {
+    fn make_trie() -> SequenceTrie<char, u32> {
         let mut trie = SequenceTrie::new();
-        trie.insert(&[], 0u);
-        trie.insert(&['a'], 1u);
-        trie.insert(&['a', 'b', 'c', 'd'], 4u);
-        trie.insert(&['a', 'b', 'x', 'y'], 25u);
+        trie.insert(&[], 0u32);
+        trie.insert(&['a'], 1u32);
+        trie.insert(&['a', 'b', 'c', 'd'], 4u32);
+        trie.insert(&['a', 'b', 'x', 'y'], 25u32);
         trie
     }
 
@@ -318,17 +319,17 @@ mod test {
     fn get() {
         let trie = make_trie();
         let data = [
-            (vec![], Some(0u)),
-            (vec!['a'], Some(1u)),
+            (vec![], Some(0u32)),
+            (vec!['a'], Some(1u32)),
             (vec!['a', 'b'], None),
             (vec!['a', 'b', 'c'], None),
             (vec!['a', 'b', 'x'], None),
-            (vec!['a', 'b', 'c', 'd'], Some(4u)),
-            (vec!['a', 'b', 'x', 'y'], Some(25u)),
+            (vec!['a', 'b', 'c', 'd'], Some(4u32)),
+            (vec!['a', 'b', 'x', 'y'], Some(25u32)),
             (vec!['b', 'x', 'y'], None)
         ];
         for &(ref key, value) in data.iter() {
-            assert_eq!(trie.get(key[]), value.as_ref());
+            assert_eq!(trie.get(key.as_slice()), value.as_ref());
         }
     }
 
@@ -336,26 +337,26 @@ mod test {
     fn get_mut() {
         let mut trie = make_trie();
         let key = ['a', 'b', 'c', 'd'];
-        *trie.get_mut(&key).unwrap() = 77u;
-        assert_eq!(*trie.get(&key).unwrap(), 77u);
+        *trie.get_mut(&key).unwrap() = 77u32;
+        assert_eq!(*trie.get(&key).unwrap(), 77u32);
     }
 
     #[test]
     fn get_ancestor() {
         let trie = make_trie();
         let data = [
-            (vec![], 0u),
-            (vec!['a'], 1u),
-            (vec!['a', 'b'], 1u),
-            (vec!['a', 'b', 'c'], 1u),
-            (vec!['a', 'b', 'c', 'd'], 4u),
-            (vec!['a', 'b', 'x'], 1u),
-            (vec!['a', 'b', 'x', 'y'], 25u),
-            (vec!['p', 'q'], 0u),
-            (vec!['a', 'p', 'q'], 1u)
+            (vec![], 0u32),
+            (vec!['a'], 1u32),
+            (vec!['a', 'b'], 1u32),
+            (vec!['a', 'b', 'c'], 1u32),
+            (vec!['a', 'b', 'c', 'd'], 4u32),
+            (vec!['a', 'b', 'x'], 1u32),
+            (vec!['a', 'b', 'x', 'y'], 25u32),
+            (vec!['p', 'q'], 0u32),
+            (vec!['a', 'p', 'q'], 1u32)
         ];
         for &(ref key, value) in data.iter() {
-            assert_eq!(*trie.get_ancestor(key[]).unwrap(), value);
+            assert_eq!(*trie.get_ancestor(key.as_slice()).unwrap(), value);
         }
     }
 
@@ -365,7 +366,7 @@ mod test {
         let prefix_nodes = trie.get_prefix_nodes(&['a', 'b', 'z']);
         // There should be 3 nodes: root, a, b.
         assert_eq!(prefix_nodes.len(), 3);
-        let values = [Some(0u), Some(1u), None];
+        let values = [Some(0u32), Some(1u32), None];
         for (node, value) in prefix_nodes.iter().zip(values.iter()) {
             assert_eq!(node.value, *value);
         }
@@ -376,36 +377,36 @@ mod test {
         let mut trie= make_trie();
         // If the node has children, its value should be set to `None`.
         println!("Remove ['a']");
-        println!("Before: {}", trie);
+        println!("Before: {:?}", trie);
         trie.remove(&['a']);
-        println!("After: {}", trie);
+        println!("After: {:?}", trie);
         assert_eq!(trie.get_node(&['a']).unwrap().value, None);
 
         // Same as above, but for the root.
         println!("Remove []");
-        println!("Before: {}", trie);
+        println!("Before: {:?}", trie);
         trie.remove(&[]);
-        println!("After: {}", trie);
+        println!("After: {:?}", trie);
         assert_eq!(trie.get_node(&[]).unwrap().value, None);
 
         // Check that lower levels are still accessible.
-        assert_eq!(trie.get(&['a', 'b', 'c', 'd']), Some(&4u));
+        assert_eq!(trie.get(&['a', 'b', 'c', 'd']), Some(&4u32));
 
         // Check that removing a leaf with an empty parent also
         // deletes the parent.
         println!("Remove ['a', 'b', 'c', 'd']");
-        println!("Before: {}", trie);
+        println!("Before: {:?}", trie);
         trie.remove(&['a', 'b', 'c', 'd']);
-        println!("After: {}", trie);
+        println!("After: {:?}", trie);
         assert!(trie.get_node(&['a', 'b', 'c', 'd']).is_none());
         assert!(trie.get_node(&['a', 'b', 'c']).is_none());
         assert!(trie.get_node(&['a', 'b']).is_some());
 
         // Bump off the rest of the Trie!
         println!("Remove ['a', 'b', 'x', 'y']");
-        println!("Before: {}", trie);
+        println!("Before: {:?}", trie);
         trie.remove(&['a', 'b', 'x', 'y']);
-        println!("After: {}", trie);
+        println!("After: {:?}", trie);
         assert!(trie.get_node(&['a', 'b', 'x', 'y']).is_none());
         assert!(trie.get_node(&['a', 'b', 'x']).is_none());
         assert!(trie.get_node(&['a', 'b']).is_none());
@@ -424,6 +425,16 @@ mod test {
         exp_keys.insert(vec!['a', 'b', 'c', 'd']);
         exp_keys.insert(vec!['a', 'b', 'x', 'y']);
         assert_eq!(exp_keys, obs_keys);
+    }
+
+    #[derive(PartialEq, Eq, Hash, Clone)]
+    struct Key {
+        field: usize
+    }
+
+    #[test]
+    fn struct_key() {
+        SequenceTrie::<Key, usize>::new();
     }
 }
 
@@ -450,7 +461,7 @@ mod benchmark {
 
                 b.iter(|| {
                     for key in test_data.iter() {
-                        map.insert(key[], 7u32);
+                        map.insert(key.as_slice(), 7u32);
                     }
                 });
             }
