@@ -114,7 +114,7 @@ impl<K, V> SequenceTrie<K, V> where K: PartialEq + Eq + Hash<Hasher> + Clone {
 
         // Otherwise, recurse down the tree.
         match self.children.get(fragment) {
-            Some(node) => node.get_node(key.slice_from(1)),
+            Some(node) => node.get_node(&key[1..]),
             None => None
         }
     }
@@ -134,7 +134,7 @@ impl<K, V> SequenceTrie<K, V> where K: PartialEq + Eq + Hash<Hasher> + Clone {
 
         // Otherwise, recurse down the tree.
         match self.children.get_mut(fragment) {
-            Some(node) => node.get_mut_node(key.slice_from(1)),
+            Some(node) => node.get_mut_node(&key[1..]),
             None => None
         }
     }
@@ -204,7 +204,7 @@ impl<K, V> SequenceTrie<K, V> where K: PartialEq + Eq + Hash<Hasher> + Clone {
                 // Find the child entry in the node's hashmap.
                 if let Entry::Occupied(mut entry) = self.children.entry(fragment.clone()) {
                     // Work out whether to delete the child by calling remove recursively.
-                    let delete_child = entry.get_mut().remove_recursive(key.slice_from(1));
+                    let delete_child = entry.get_mut().remove_recursive(&key[1..]);
 
                     if delete_child {
                         entry.remove();
