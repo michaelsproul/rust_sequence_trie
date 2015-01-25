@@ -7,7 +7,7 @@ extern crate "test" as test_crate;
 
 use std::hash::Hash;
 use std::collections::hash_map::{self, HashMap, Hasher, Entry};
-use std::fmt::{self, Formatter, Show};
+use std::fmt::{self, Formatter, Debug};
 
 /// A `SequenceTrie` is recursively defined as a value and a map containing child Tries.
 ///
@@ -279,10 +279,10 @@ where
     }
 }
 
-impl<K, V> Show for SequenceTrie<K, V>
+impl<K, V> Debug for SequenceTrie<K, V>
 where
-    K: PartialEq + Eq + Hash<Hasher> + Clone + Show,
-    V: Show {
+    K: PartialEq + Eq + Hash<Hasher> + Clone + Debug,
+    V: Debug {
     fn fmt(&self, fmt: &mut Formatter) -> Result<(), fmt::Error> {
         try!("Trie { value: ".fmt(fmt));
         try!(self.value.fmt(fmt));
