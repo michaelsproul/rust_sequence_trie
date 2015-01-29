@@ -1,7 +1,7 @@
 [Sequence Trie][doc]
 ====
 
-[![Build Status](https://travis-ci.org/michaelsproul/rust-sequence-trie.svg)](https://travis-ci.org/michaelsproul/rust-sequence-trie)
+[![Build Status](https://travis-ci.org/michaelsproul/rust_sequence_trie.svg)](https://travis-ci.org/michaelsproul/rust_sequence_trie)
 
 This is a generic Trie implementation that uses a hash map to store child nodes. The Trie is keyed by lists of type `K`, which can be anything implementing `PartialEq`, `Eq`, `Hash` and `Clone`. If your keys are explicit lists and you want to be able to store a different value for each fragment of a key, this might be the data structure for you!
 
