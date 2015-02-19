@@ -448,8 +448,8 @@ mod benchmark {
         ($map_constructor: expr, $test_id: ident, $num_keys: expr, $key_length: expr) => (
             #[bench]
             fn $test_id(b: &mut Bencher) {
-                let mut map = $map_constructor;
                 let mut test_data = Vec::<Vec<u32>>::with_capacity($num_keys);
+                let mut map = $map_constructor;
                 for i in range(0, $num_keys) {
                     let mut key = Vec::<u32>::with_capacity($key_length);
                     for j in range(0, $key_length) {
@@ -460,7 +460,7 @@ mod benchmark {
                 }
 
                 b.iter(|| {
-                    for key in test_data.iter() {
+                    for key in &test_data {
                         map.insert(key.as_slice(), 7u32);
                     }
                 });
