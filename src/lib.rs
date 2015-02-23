@@ -1,8 +1,5 @@
 //! Sequence Trie.
 
-#![feature(slicing_syntax)]
-#![allow(unstable)]
-
 extern crate "test" as test_crate;
 
 use std::hash::Hash;
