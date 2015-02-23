@@ -6,7 +6,7 @@
 extern crate "test" as test_crate;
 
 use std::hash::Hash;
-use std::collections::hash_map::{self, HashMap, Hasher, Entry};
+use std::collections::hash_map::{self, HashMap, Entry};
 use std::fmt::{self, Formatter, Debug};
 
 /// A `SequenceTrie` is recursively defined as a value and a map containing child Tries.
@@ -72,7 +72,7 @@ pub struct SequenceTrie<K, V> {
     pub children: HashMap<K, SequenceTrie<K, V>>
 }
 
-impl<K, V> SequenceTrie<K, V> where K: PartialEq + Eq + Hash<Hasher> + Clone {
+impl<K, V> SequenceTrie<K, V> where K: PartialEq + Eq + Hash + Clone {
     /// Create a new SequenceTrie node with no value and an empty child map.
     pub fn new() -> SequenceTrie<K, V> {
         SequenceTrie {
@@ -247,7 +247,7 @@ struct IterItem<'a, K: 'a, V: 'a> {
 
 impl<'a, K, V> Iterator for Keys<'a, K, V>
 where
-    K: PartialEq + Eq + Hash<Hasher> + Clone {
+    K: PartialEq + Eq + Hash + Clone {
     type Item = Vec<&'a K>;
     fn next(&mut self) -> Option<Vec<&'a K>> {
         loop {
@@ -281,7 +281,7 @@ where
 
 impl<K, V> Debug for SequenceTrie<K, V>
 where
-    K: PartialEq + Eq + Hash<Hasher> + Clone + Debug,
+    K: PartialEq + Eq + Hash + Clone + Debug,
     V: Debug {
     fn fmt(&self, fmt: &mut Formatter) -> Result<(), fmt::Error> {
         try!("Trie { value: ".fmt(fmt));
