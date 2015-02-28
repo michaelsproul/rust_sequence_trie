@@ -1,10 +1,13 @@
 //! Sequence Trie.
 
+#![feature(test, std_misc)]
+
 extern crate "test" as test_crate;
 
 use std::hash::Hash;
 use std::collections::hash_map::{self, HashMap, Entry};
 use std::fmt::{self, Formatter, Debug};
+use std::default::Default;
 
 /// A `SequenceTrie` is recursively defined as a value and a map containing child Tries.
 ///
@@ -298,6 +301,21 @@ impl<K, V> Clone for SequenceTrie<K, V> where K: Clone, V: Clone {
     }
 }
 
+impl<K, V> PartialEq for SequenceTrie<K, V> where K: Eq + Hash, V: PartialEq {
+    fn eq(&self, other: &Self) -> bool {
+        self.value == other.value && self.children == other.children
+    }
+}
+
+impl<K, V> Eq for SequenceTrie<K, V> where K: Eq + Hash, V: Eq {}
+
+impl<K, V> Default for SequenceTrie<K, V> where K: Eq + Hash + Clone {
+    fn default() -> Self {
+        SequenceTrie::new()
+    }
+}
+
+
 #[cfg(test)]
 mod test {
     use super::SequenceTrie;
@@ -326,7 +344,7 @@ mod test {
             (vec!['b', 'x', 'y'], None)
         ];
         for &(ref key, value) in data.iter() {
-            assert_eq!(trie.get(key.as_slice()), value.as_ref());
+            assert_eq!(trie.get(key), value.as_ref());
         }
     }
 
@@ -353,7 +371,7 @@ mod test {
             (vec!['a', 'p', 'q'], 1u32)
         ];
         for &(ref key, value) in data.iter() {
-            assert_eq!(*trie.get_ancestor(key.as_slice()).unwrap(), value);
+            assert_eq!(*trie.get_ancestor(key).unwrap(), value);
         }
     }
 
@@ -433,6 +451,65 @@ mod test {
     fn struct_key() {
         SequenceTrie::<Key, usize>::new();
     }
+
+    #[test]
+    fn eq() {
+        let first_trie = make_trie();
+        let second_trie = make_trie();
+        assert_eq!(first_trie, second_trie);
+    }
+
+    #[test]
+    fn eq_empty() {
+        let first_trie: SequenceTrie<u8, i32> = SequenceTrie::new();
+        let second_trie = SequenceTrie::new();
+        assert_eq!(first_trie, second_trie);
+    }
+
+    #[test]
+    fn ne_value() {
+        let mut first_trie = SequenceTrie::new();
+        first_trie.insert(b"1234", 1234);
+        first_trie.insert(b"1235", 1235);
+        let mut second_trie = SequenceTrie::new();
+        second_trie.insert(b"1234", 1234);
+        second_trie.insert(b"1235", 1236);
+        assert!(first_trie != second_trie);
+    }
+
+    #[test]
+    fn ne_key() {
+        let mut first_trie = SequenceTrie::new();
+        first_trie.insert(b"1234", 1234);
+        first_trie.insert(b"1235", 1235);
+        let mut second_trie = SequenceTrie::new();
+        second_trie.insert(b"1234", 1234);
+        second_trie.insert(b"1236", 1235);
+        assert!(first_trie != second_trie);
+    }
+
+    #[test]
+    fn ne_missing_key() {
+        let mut first_trie = SequenceTrie::new();
+        first_trie.insert(b"1234", 1234);
+        first_trie.insert(b"1235", 1235);
+        let mut second_trie = SequenceTrie::new();
+        second_trie.insert(b"1234", 1234);
+        assert!(first_trie != second_trie);
+    }
+
+    #[test]
+    fn clone() {
+        let first_trie = make_trie();
+        let second_trie = first_trie.clone();
+        assert_eq!(first_trie, second_trie);
+    }
+
+    #[test]
+    fn default() {
+        let empty_trie: SequenceTrie<u8, i32> = ::std::default::Default::default();
+        assert_eq!(empty_trie, SequenceTrie::new());
+    }
 }
 
 #[cfg(test)]
@@ -447,13 +524,13 @@ mod benchmark {
             fn $test_id(b: &mut Bencher) {
                 let mut test_data = Vec::<Vec<u32>>::with_capacity($num_keys);
                 let mut map = $map_constructor;
-                for i in range(0, $num_keys) {
+                for i in 0 .. $num_keys {
                     let mut key = Vec::<u32>::with_capacity($key_length);
-                    for j in range(0, $key_length) {
-                        key[j] = (i * j) as u32;
+                    for j in 0 .. $key_length {
+                        key.push(i * j);
                     }
 
-                    test_data[i] = key;
+                    test_data.push(key);
                 }
 
                 b.iter(|| {
