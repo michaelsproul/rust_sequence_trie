@@ -2,7 +2,9 @@
 
 rev=$(git rev-parse --short HEAD)
 
-cd target/docs
+set -e
+
+cd target/doc
 
 # Add a page to redirect to the main crate.
 echo '<meta http-equiv="refresh" content="0; url=rust_sequence_trie/index.html">' > index.html
@@ -15,5 +17,5 @@ git remote add upstream "https://$GH_TOKEN@github.com/michaelsproul/rust_sequenc
 git fetch upstream && git reset upstream/gh-pages
 
 git add -A .
-git commit -m "Rebuild pages at ${rev}"
+git commit -m "Rebuild pages at ${rev}."
 git push -q upstream HEAD:gh-pages
