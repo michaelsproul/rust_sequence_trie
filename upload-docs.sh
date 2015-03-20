@@ -7,7 +7,7 @@ set -e
 cd target/doc
 
 # Add a page to redirect to the main crate.
-echo '<meta http-equiv="refresh" content="0; url=rust_sequence_trie/index.html">' > index.html
+echo '<meta http-equiv="refresh" content="0; url=sequence_trie/index.html">' > index.html
 
 git init
 git config user.name "Michael Sproul"
