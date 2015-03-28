@@ -20,7 +20,7 @@ macro_rules! u32_benchmark {
 
             b.iter(|| {
                 for key in &test_data {
-                    map.insert(key.as_slice(), 7u32);
+                    map.insert((key as &AsRef<[u32]>).as_ref(), 7u32);
                 }
             });
         }
