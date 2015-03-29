@@ -2,9 +2,9 @@
 //!
 //! See the `SequenceTrie` type for documentation.
 
-#![feature(test, std_misc)]
+#![feature(test)]
 
-extern crate "test" as std_test;
+extern crate test as std_test;
 
 use std::hash::Hash;
 use std::collections::hash_map::{self, HashMap, Entry};
