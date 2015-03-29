@@ -3,7 +3,6 @@
 //! See the `SequenceTrie` type for documentation.
 
 #![feature(test)]
-#![feature(convert)]
 
 extern crate test as std_test;
 
