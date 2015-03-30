@@ -1,7 +1,7 @@
 [package]
 
 name = "sequence_trie"
-version = "0.0.10"
+version = "0.0.11"
 description = "Trie-like data-structure for storing sequences of values."
 
 license = "MIT"
