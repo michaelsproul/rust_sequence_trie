@@ -4,7 +4,7 @@ name = "sequence_trie"
 version = "0.0.10"
 description = "Trie-like data-structure for storing sequences of values."
 
-license = "GPL-3.0+"
+license = "MIT"
 authors = ["Michael Sproul <micsproul@gmail.com>"]
 
 documentation = "https://michaelsproul.github.io/rust_sequence_trie/"

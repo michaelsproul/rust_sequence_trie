@@ -9,4 +9,23 @@ I'm still undecided about what to call this data-structure, as it's kind of half
 
 For more information, see the [documentation][doc].
 
-[doc]: http://sproul.io/rust/sequence_trie/
+[doc]: https://michaelsproul.github.io/rust_sequence_trie/
+
+# Usage
+
+Add `sequence_trie` to your `Cargo.toml`.
+
+```toml
+[dependencies]
+sequence_trie = "*"
+```
+
+# See Also
+
+Since writing this sequence trie I've created a radix trie which uses node compression. It has better performance but less features (currently).
+
+https://github.com/michaelsproul/rust_radix_trie
+
+# License
+
+MIT License. Copyright (c) Michael Sproul 2015.
