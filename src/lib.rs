@@ -10,7 +10,6 @@ extern crate test as std_test;
 use std::hash::Hash;
 use std::collections::hash_map::{self, HashMap, Entry};
 use std::iter::Map;
-use std::fmt::{self, Formatter, Debug};
 use std::default::Default;
 
 #[cfg(test)]
@@ -73,7 +72,8 @@ mod benchmark;
 /// # The Sequence Trie Invariant
 /// All leaf nodes have non-trivial values (not equal to `None`). This invariant is maintained by
 /// the insertion and removal methods and can be relied upon.
-pub struct SequenceTrie<K, V> {
+#[derive(Debug, Clone)]
+pub struct SequenceTrie<K, V> where K: TrieKey {
     /// Node value.
     pub value: Option<V>,
 
@@ -81,7 +81,14 @@ pub struct SequenceTrie<K, V> {
     pub children: HashMap<K, SequenceTrie<K, V>>
 }
 
-impl<K, V> SequenceTrie<K, V> where K: PartialEq + Eq + Hash + Clone {
+/// Aggregate trait for types which can be used to key a `SequenceTrie`.
+///
+/// This trait is automatically implemented for all types implementing
+/// the supertraits.
+pub trait TrieKey: PartialEq + Eq + Hash + Clone {}
+impl<K> TrieKey for K where K: PartialEq + Eq + Hash + Clone {}
+
+impl<K, V> SequenceTrie<K, V> where K: TrieKey {
     /// Create a new SequenceTrie node with no value and an empty child map.
     pub fn new() -> SequenceTrie<K, V> {
         SequenceTrie {
@@ -267,7 +274,7 @@ impl<K, V> SequenceTrie<K, V> where K: PartialEq + Eq + Hash + Clone {
 }
 
 /// Iterator over the keys and values of a `SequenceTrie`.
-pub struct Iter<'a, K: 'a, V: 'a> {
+pub struct Iter<'a, K: 'a, V: 'a> where K: TrieKey {
     root: &'a SequenceTrie<K, V>,
     root_visited: bool,
     key: Vec<&'a K>,
@@ -278,27 +285,27 @@ pub struct Iter<'a, K: 'a, V: 'a> {
 pub type KeyValuePair<'a, K, V> = (Vec<&'a K>, &'a V);
 
 /// Iterator over the keys of a `SequenceTrie`.
-pub struct Keys<'a, K: 'a, V: 'a> {
+pub struct Keys<'a, K: 'a, V: 'a> where K: TrieKey {
     inner: Map<Iter<'a, K, V>, fn(KeyValuePair<'a, K, V>) -> Vec<&'a K>>
 }
 
 /// Iterator over the values of a `SequenceTrie`.
-pub struct Values<'a, K: 'a, V: 'a> {
+pub struct Values<'a, K: 'a, V: 'a> where K: TrieKey {
     inner: Map<Iter<'a, K, V>, fn(KeyValuePair<'a, K, V>) -> &'a V>
 }
 
 /// Information stored on the iteration stack whilst exploring.
-struct StackItem<'a, K: 'a, V: 'a> {
+struct StackItem<'a, K: 'a, V: 'a> where K: TrieKey {
     child_iter: hash_map::Iter<'a, K, SequenceTrie<K, V>>
 }
 
 /// Delayed action type for iteration stack manipulation.
-enum IterAction<'a, K: 'a, V: 'a> {
+enum IterAction<'a, K: 'a, V: 'a> where K: TrieKey {
     Push(&'a K, &'a SequenceTrie<K, V>),
     Pop
 }
 
-impl<'a, K, V> Iterator for Iter<'a, K, V> where K: PartialEq + Eq + Hash + Clone {
+impl<'a, K, V> Iterator for Iter<'a, K, V> where K: TrieKey {
     type Item = KeyValuePair<'a, K, V>;
 
     fn next(&mut self) -> Option<KeyValuePair<'a, K, V>> {
@@ -345,7 +352,7 @@ impl<'a, K, V> Iterator for Iter<'a, K, V> where K: PartialEq + Eq + Hash + Clon
     }
 }
 
-impl<'a, K, V> Iterator for Keys<'a, K, V> where K: PartialEq + Eq + Hash + Clone {
+impl<'a, K, V> Iterator for Keys<'a, K, V> where K: TrieKey {
     type Item = Vec<&'a K>;
 
     fn next(&mut self) -> Option<Vec<&'a K>> {
@@ -361,37 +368,15 @@ impl<'a, K, V> Iterator for Values<'a, K, V> where K: PartialEq + Eq + Hash + Cl
     }
 }
 
-impl<K, V> Debug for SequenceTrie<K, V>
-where
-    K: PartialEq + Eq + Hash + Clone + Debug,
-    V: Debug {
-    fn fmt(&self, fmt: &mut Formatter) -> Result<(), fmt::Error> {
-        try!("Trie { value: ".fmt(fmt));
-        try!(self.value.fmt(fmt));
-        try!(", children: ".fmt(fmt));
-        try!(self.children.fmt(fmt));
-        " }".fmt(fmt)
-    }
-}
-
-impl<K, V> Clone for SequenceTrie<K, V> where K: Clone, V: Clone {
-    fn clone(&self) -> SequenceTrie<K, V> {
-        SequenceTrie {
-            value: self.value.clone(),
-            children: self.children.clone()
-        }
-    }
-}
-
-impl<K, V> PartialEq for SequenceTrie<K, V> where K: Eq + Hash, V: PartialEq {
+impl<K, V> PartialEq for SequenceTrie<K, V> where K: TrieKey, V: PartialEq {
     fn eq(&self, other: &Self) -> bool {
         self.value == other.value && self.children == other.children
     }
 }
 
-impl<K, V> Eq for SequenceTrie<K, V> where K: Eq + Hash, V: Eq {}
+impl<K, V> Eq for SequenceTrie<K, V> where K: TrieKey, V: Eq {}
 
-impl<K, V> Default for SequenceTrie<K, V> where K: Eq + Hash + Clone {
+impl<K, V> Default for SequenceTrie<K, V> where K: TrieKey {
     fn default() -> Self {
         SequenceTrie::new()
     }
