@@ -118,6 +118,8 @@ fn key_iter() {
         v.iter().map(|&&x| x).collect()
     }).collect();
     let mut exp_keys: HashSet<Vec<char>> = HashSet::new();
+    exp_keys.insert(vec![]);
+    exp_keys.insert(vec!['a']);
     exp_keys.insert(vec!['a', 'b', 'c', 'd']);
     exp_keys.insert(vec!['a', 'b', 'x', 'y']);
     assert_eq!(exp_keys, obs_keys);
@@ -191,4 +193,3 @@ fn default() {
     let empty_trie: SequenceTrie<u8, i32> = ::std::default::Default::default();
     assert_eq!(empty_trie, SequenceTrie::new());
 }
-

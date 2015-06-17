@@ -9,6 +9,7 @@ extern crate test as std_test;
 
 use std::hash::Hash;
 use std::collections::hash_map::{self, HashMap, Entry};
+use std::iter::Map;
 use std::fmt::{self, Formatter, Debug};
 use std::default::Default;
 
@@ -232,58 +233,131 @@ impl<K, V> SequenceTrie<K, V> where K: PartialEq + Eq + Hash + Clone {
         }
     }
 
-    /// Return an iterator over all the keys in the collection.
-    ///
-    /// Only nodes with values are included.
+    /// Return an iterator over all the key-value pairs in the collection.
+    pub fn iter<'a>(&'a self) -> Iter<'a, K, V> {
+        Iter {
+            root: self,
+            root_visited: false,
+            key: vec![],
+            stack: vec![]
+        }
+    }
+
+    /// Return an iterator over all the keys in the trie.
     pub fn keys<'a>(&'a self) -> Keys<'a, K, V> {
+        // First fn coerced to a fn pointer (borrowed from HashMap impl).
+        fn first<A, B>((a, _): (A, B)) -> A { a }
+        let first: fn(KeyValuePair<'a, K, V>) -> Vec<&'a K> = first;
+
         Keys {
-            stack: vec![IterItem { node: self, key: None, child_iter: self.children.keys() }]
+            inner: self.iter().map(first)
+        }
+    }
+
+    /// Return an iterator over all the values stored in the trie.
+    pub fn values<'a>(&'a self) -> Values<'a, K, V> {
+        // Second fn coerced to a fn pointer (borrowed from HashMap impl).
+        fn second<A, B>((_, b): (A, B)) -> B { b }
+        let second: fn(KeyValuePair<'a, K, V>) -> &'a V = second;
+
+        Values {
+            inner: self.iter().map(second)
         }
     }
 }
 
-/// An iteterator over the keys of a `SequenceTrie`.
+/// Iterator over the keys and values of a `SequenceTrie`.
+pub struct Iter<'a, K: 'a, V: 'a> {
+    root: &'a SequenceTrie<K, V>,
+    root_visited: bool,
+    key: Vec<&'a K>,
+    stack: Vec<StackItem<'a, K, V>>
+}
+
+/// Vector of key fragment references and values, yielded during iteration.
+pub type KeyValuePair<'a, K, V> = (Vec<&'a K>, &'a V);
+
+/// Iterator over the keys of a `SequenceTrie`.
 pub struct Keys<'a, K: 'a, V: 'a> {
-    stack: Vec<IterItem<'a, K, V,>>
+    inner: Map<Iter<'a, K, V>, fn(KeyValuePair<'a, K, V>) -> Vec<&'a K>>
 }
 
-struct IterItem<'a, K: 'a, V: 'a> {
-    node: &'a SequenceTrie<K, V>,
-    key: Option<&'a K>,
-    child_iter: hash_map::Keys<'a, K, SequenceTrie<K, V>>
+/// Iterator over the values of a `SequenceTrie`.
+pub struct Values<'a, K: 'a, V: 'a> {
+    inner: Map<Iter<'a, K, V>, fn(KeyValuePair<'a, K, V>) -> &'a V>
 }
 
-impl<'a, K, V> Iterator for Keys<'a, K, V>
-where
-    K: PartialEq + Eq + Hash + Clone {
-    type Item = Vec<&'a K>;
-    fn next(&mut self) -> Option<Vec<&'a K>> {
-        loop {
-            match self.stack.last().map(|x| x.node.children.is_empty()) {
-                Some(true) => {
-                    let result: Vec<&'a K> = self.stack.iter()
-                                                        .skip(1)
-                                                        .map(|x| x.key.unwrap())
-                                                        .collect();
-                    self.stack.pop();
-                    return Some(result);
-                },
-                Some(false) => {
-                    match self.stack.last_mut().unwrap().child_iter.next() {
-                        Some(child_key) => {
-                            let child = self.stack.last().unwrap().node.children.get(child_key).unwrap();
-                            self.stack.push(IterItem {
-                                node: child,
-                                key: Some(child_key),
-                                child_iter: child.children.keys()
-                            });
-                        }
-                        None => { self.stack.pop(); }
-                    }
-                },
-                None => return None
+/// Information stored on the iteration stack whilst exploring.
+struct StackItem<'a, K: 'a, V: 'a> {
+    child_iter: hash_map::Iter<'a, K, SequenceTrie<K, V>>
+}
+
+/// Delayed action type for iteration stack manipulation.
+enum IterAction<'a, K: 'a, V: 'a> {
+    Push(&'a K, &'a SequenceTrie<K, V>),
+    Pop
+}
+
+impl<'a, K, V> Iterator for Iter<'a, K, V> where K: PartialEq + Eq + Hash + Clone {
+    type Item = KeyValuePair<'a, K, V>;
+
+    fn next(&mut self) -> Option<KeyValuePair<'a, K, V>> {
+        use IterAction::*;
+
+        // Special handling for the root.
+        if !self.root_visited {
+            self.root_visited = true;
+            self.stack.push(StackItem {
+                child_iter: self.root.children.iter()
+            });
+            if let Some(ref root_val) = self.root.value {
+                return Some((vec![], root_val));
             }
         }
+
+        loop {
+            let action = match self.stack.last_mut() {
+                Some(stack_top) => {
+                    match stack_top.child_iter.next() {
+                        Some((fragment, child_node)) => Push(fragment, child_node),
+                        None => Pop
+                    }
+                }
+                None => return None
+            };
+
+            match action {
+                Push(fragment, node) => {
+                    self.stack.push(StackItem {
+                        child_iter: node.children.iter()
+                    });
+                    self.key.push(fragment);
+                    if let Some(ref value) = node.value {
+                        return Some((self.key.clone(), value));
+                    }
+                }
+                Pop => {
+                    self.key.pop();
+                    self.stack.pop();
+                }
+            }
+        }
+    }
+}
+
+impl<'a, K, V> Iterator for Keys<'a, K, V> where K: PartialEq + Eq + Hash + Clone {
+    type Item = Vec<&'a K>;
+
+    fn next(&mut self) -> Option<Vec<&'a K>> {
+        self.inner.next()
+    }
+}
+
+impl<'a, K, V> Iterator for Values<'a, K, V> where K: PartialEq + Eq + Hash + Clone {
+    type Item = &'a V;
+
+    fn next(&mut self) -> Option<&'a V> {
+        self.inner.next()
     }
 }
 
