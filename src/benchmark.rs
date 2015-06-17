@@ -1,5 +1,3 @@
-// FIXME: Disabled pending benchmark stabilisation.
-
 use std::collections::HashMap;
 use std_test::Bencher;
 
