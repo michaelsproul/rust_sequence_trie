@@ -22,7 +22,7 @@ sequence_trie = "*"
 
 # See Also
 
-Since writing this sequence trie I've created a radix trie which uses node compression. It has better performance but less features (currently).
+Since writing this sequence trie I've created a radix trie which uses node compression. It has *much* better performance and has reached feature-parity.
 
 https://github.com/michaelsproul/rust_radix_trie
 
