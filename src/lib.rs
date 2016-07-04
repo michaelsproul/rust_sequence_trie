@@ -21,17 +21,17 @@ mod tests;
 /// key fragments onto nodes. The structure is similar to a k-ary tree, except that the children
 /// are stored in `HashMap`s, and there is no bound on the number of children a single node may
 /// have (effectively k = ∞). In a SequenceTrie with `char` key fragments, the key
-/// `['a', 'b', 'c']` might correspond to something like this (warning: not real code).
+/// `['a', 'b', 'c']` might correspond to something like this:
 ///
-/// ```ignore
+/// ```text
 /// SequenceTrie {
-///     value: Some(0u),
+///     value: Some(0),
 ///     children: 'a' => SequenceTrie {
-///         value: Some(1u),
+///         value: Some(1),
 ///         children: 'b' => SequenceTrie {
 ///             value: None,
 ///             children: 'c' => SequenceTrie {
-///                 value: Some(3u),
+///                 value: Some(3),
 ///                 children: Nil
 ///             }
 ///         }
@@ -45,11 +45,12 @@ mod tests;
 ///
 /// The above SequenceTrie could be created using the following sequence of operations:
 ///
-/// ```ignore
-/// let trie: SequenceTrie<char, uint> = SequenceTrie::new();
-/// trie.insert(['a', 'b', 'c'], 3u);
-/// trie.insert([], 0u);
-/// trie.insert(['a'], 1u);
+/// ```
+/// # use sequence_trie::SequenceTrie;
+/// let mut trie: SequenceTrie<char, i32> = SequenceTrie::new();
+/// trie.insert(&['a', 'b', 'c'], 3);
+/// trie.insert(&[], 0);
+/// trie.insert(&['a'], 1);
 /// ```
 ///
 /// The order of insertion is never important.
