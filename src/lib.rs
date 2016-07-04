@@ -69,10 +69,10 @@ mod tests;
 #[derive(Debug, Clone)]
 pub struct SequenceTrie<K, V> where K: TrieKey {
     /// Node value.
-    pub value: Option<V>,
+    value: Option<V>,
 
     /// Node children as a hashmap keyed by key fragments.
-    pub children: HashMap<K, SequenceTrie<K, V>>
+    children: HashMap<K, SequenceTrie<K, V>>
 }
 
 /// Aggregate trait for types which can be used to key a `SequenceTrie`.
