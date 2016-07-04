@@ -93,20 +93,16 @@ impl<K, V> SequenceTrie<K, V> where K: TrieKey {
 
     /// Insert a key and value into the SequenceTrie.
     ///
-    /// Returns `true` if the key did not already correspond to a value.
-    pub fn insert<'a, I: IntoIterator<Item=&'a K>>(&mut self, key: I, value: V) -> bool {
+    /// Returns `None` if the key did not already correspond to a value, otherwise the old value is
+    /// returned.
+    pub fn insert<'a, I: IntoIterator<Item=&'a K>>(&mut self, key: I, value: V) -> Option<V> {
         let key_node = key.into_iter().fold(self, |current_node, fragment| {
-            match current_node.children.entry(fragment.clone()) {
-                Entry::Vacant(slot) => slot.insert(SequenceTrie::new()),
-                Entry::Occupied(slot) => slot.into_mut()
-            }
+            current_node.children.entry(fragment.clone()).or_insert_with(Self::new)
         });
-        let is_new_value = match key_node.value {
-            Some(_) => false,
-            None => true
-        };
+
+        let old = key_node.value.take();
         key_node.value = Some(value);
-        is_new_value
+        old
     }
 
     /// Find a reference to a key's value, if it has one.
