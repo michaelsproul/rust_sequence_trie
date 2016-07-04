@@ -129,11 +129,11 @@ impl<K, V> SequenceTrie<K, V> where K: TrieKey {
 
     /// Find a mutable reference to a key's value, if it has one.
     pub fn get_mut<'a, I: IntoIterator<Item=&'a K>>(&mut self, key: I) -> Option<&mut V> {
-        self.get_mut_node(key).and_then(|node| node.value.as_mut())
+        self.get_node_mut(key).and_then(|node| node.value.as_mut())
     }
 
     /// Find a mutable reference to a key's node, if it has one.
-    pub fn get_mut_node<'a, I: IntoIterator<Item=&'a K>>(&mut self, key: I) -> Option<&mut SequenceTrie<K, V>> {
+    pub fn get_node_mut<'a, I: IntoIterator<Item=&'a K>>(&mut self, key: I) -> Option<&mut SequenceTrie<K, V>> {
         let mut fragments = key.into_iter();
 
         // Recursive base case, if the key is empty, return the node.
@@ -144,7 +144,7 @@ impl<K, V> SequenceTrie<K, V> where K: TrieKey {
 
         // Otherwise, recurse down the tree.
         match self.children.get_mut(fragment) {
-            Some(node) => node.get_mut_node(fragments),
+            Some(node) => node.get_node_mut(fragments),
             None => None
         }
     }
