@@ -4,7 +4,7 @@
 
 use std::hash::Hash;
 use std::collections::hash_map::{self, HashMap, Entry};
-use std::iter::Map;
+use std::iter::{IntoIterator, Map};
 use std::default::Default;
 
 #[cfg(test)]
@@ -79,8 +79,8 @@ pub struct SequenceTrie<K, V> where K: TrieKey {
 ///
 /// This trait is automatically implemented for all types implementing
 /// the supertraits.
-pub trait TrieKey: PartialEq + Eq + Hash + Clone {}
-impl<K> TrieKey for K where K: PartialEq + Eq + Hash + Clone {}
+pub trait TrieKey: 'static + PartialEq + Eq + Hash + Clone {}
+impl<K> TrieKey for K where K: 'static + PartialEq + Eq + Hash + Clone {}
 
 impl<K, V> SequenceTrie<K, V> where K: TrieKey {
     /// Create a new SequenceTrie node with no value and an empty child map.
@@ -94,8 +94,8 @@ impl<K, V> SequenceTrie<K, V> where K: TrieKey {
     /// Insert a key and value into the SequenceTrie.
     ///
     /// Returns `true` if the key did not already correspond to a value.
-    pub fn insert(&mut self, key: &[K], value: V) -> bool {
-        let key_node = key.iter().fold(self, |current_node, fragment| {
+    pub fn insert<'a, I: IntoIterator<Item=&'a K>>(&mut self, key: I, value: V) -> bool {
+        let key_node = key.into_iter().fold(self, |current_node, fragment| {
             match current_node.children.entry(fragment.clone()) {
                 Entry::Vacant(slot) => slot.insert(SequenceTrie::new()),
                 Entry::Occupied(slot) => slot.into_mut()
@@ -110,50 +110,54 @@ impl<K, V> SequenceTrie<K, V> where K: TrieKey {
     }
 
     /// Find a reference to a key's value, if it has one.
-    pub fn get(&self, key: &[K]) -> Option<&V> {
+    pub fn get<'a, I: IntoIterator<Item=&'a K>>(&self, key: I) -> Option<&V> {
         self.get_node(key).and_then(|node| node.value.as_ref())
     }
 
     /// Find a reference to a key's node, if it has one.
-    pub fn get_node(&self, key: &[K]) -> Option<&SequenceTrie<K, V>> {
+    pub fn get_node<'a, I: IntoIterator<Item=&'a K>>(&self, key: I) -> Option<&SequenceTrie<K, V>> {
+        let mut fragments = key.into_iter();
+
         // Recursive base case, if the key is empty, return the node.
-        let fragment = match key.first() {
+        let fragment = match fragments.next() {
             Some(head) => head,
             None => return Some(self)
         };
 
         // Otherwise, recurse down the tree.
         match self.children.get(fragment) {
-            Some(node) => node.get_node(&key[1..]),
+            Some(node) => node.get_node(fragments),
             None => None
         }
     }
 
     /// Find a mutable reference to a key's value, if it has one.
-    pub fn get_mut(&mut self, key: &[K]) -> Option<&mut V> {
+    pub fn get_mut<'a, I: IntoIterator<Item=&'a K>>(&mut self, key: I) -> Option<&mut V> {
         self.get_mut_node(key).and_then(|node| node.value.as_mut())
     }
 
     /// Find a mutable reference to a key's node, if it has one.
-    pub fn get_mut_node(&mut self, key: &[K]) -> Option<&mut SequenceTrie<K, V>> {
+    pub fn get_mut_node<'a, I: IntoIterator<Item=&'a K>>(&mut self, key: I) -> Option<&mut SequenceTrie<K, V>> {
+        let mut fragments = key.into_iter();
+
         // Recursive base case, if the key is empty, return the node.
-        let fragment = match key.first() {
+        let fragment = match fragments.next() {
             Some(head) => head,
             None => return Some(self)
         };
 
         // Otherwise, recurse down the tree.
         match self.children.get_mut(fragment) {
-            Some(node) => node.get_mut_node(&key[1..]),
+            Some(node) => node.get_mut_node(fragments),
             None => None
         }
     }
 
     /// Find the longest prefix of nodes which match the given key.
-    pub fn get_prefix_nodes(&self, key: &[K]) -> Vec<&SequenceTrie<K, V>> {
+    pub fn get_prefix_nodes<'a, I: IntoIterator<Item=&'a K>>(&self, key: I) -> Vec<&SequenceTrie<K, V>> {
         let mut node_path = vec![self];
 
-        for fragment in key.iter() {
+        for fragment in key {
             match node_path.last().unwrap().children.get(fragment) {
                 Some(node) => node_path.push(node),
                 None => break
@@ -165,14 +169,14 @@ impl<K, V> SequenceTrie<K, V> where K: TrieKey {
     /// Find the value of the nearest ancestor with a non-empty value, if one exists.
     ///
     /// If all ancestors have empty (`None`) values, `None` is returned.
-    pub fn get_ancestor(&self, key: &[K]) -> Option<&V> {
+    pub fn get_ancestor<'a, I: IntoIterator<Item=&'a K>>(&self, key: I) -> Option<&V> {
         self.get_ancestor_node(key).and_then(|node| node.value.as_ref())
     }
 
     /// Find the nearest ancestor with a non-empty value, if one exists.
     ///
     /// If all ancestors have empty (`None`) values, `None` is returned.
-    pub fn get_ancestor_node(&self, key: &[K]) -> Option<&SequenceTrie<K, V>> {
+    pub fn get_ancestor_node<'a, I: IntoIterator<Item=&'a K>>(&self, key: I) -> Option<&SequenceTrie<K, V>> {
         let node_path = self.get_prefix_nodes(key);
 
         for node in node_path.iter().rev() {
@@ -194,7 +198,7 @@ impl<K, V> SequenceTrie<K, V> where K: TrieKey {
     /// from the key node until a node with a non-empty value or children is reached.
     ///
     /// If the key doesn't match a node in the Trie, no action is taken.
-    pub fn remove(&mut self, key: &[K]) {
+    pub fn remove<'a, I: IntoIterator<Item=&'a K>>(&mut self, key: I) {
         self.remove_recursive(key);
     }
 
@@ -204,8 +208,9 @@ impl<K, V> SequenceTrie<K, V> where K: TrieKey {
     /// Return `true` if the node should be deleted.
     ///
     /// See `remove` above.
-    fn remove_recursive(&mut self, key: &[K]) -> bool {
-        match key.first() {
+    fn remove_recursive<'a, I: IntoIterator<Item=&'a K>>(&mut self, key: I) -> bool {
+        let mut fragments = key.into_iter();
+        match fragments.next() {
             // Base case: Leaf node, no key left to recurse on.
             None => { self.value = None; },
 
@@ -214,7 +219,7 @@ impl<K, V> SequenceTrie<K, V> where K: TrieKey {
                 // Find the child entry in the node's hashmap.
                 if let Entry::Occupied(mut entry) = self.children.entry(fragment.clone()) {
                     // Work out whether to delete the child by calling remove recursively.
-                    let delete_child = entry.get_mut().remove_recursive(&key[1..]);
+                    let delete_child = entry.get_mut().remove_recursive(fragments);
 
                     if delete_child {
                         entry.remove();
@@ -354,7 +359,7 @@ impl<'a, K, V> Iterator for Keys<'a, K, V> where K: TrieKey {
     }
 }
 
-impl<'a, K, V> Iterator for Values<'a, K, V> where K: PartialEq + Eq + Hash + Clone {
+impl<'a, K, V> Iterator for Values<'a, K, V> where K: TrieKey {
     type Item = &'a V;
 
     fn next(&mut self) -> Option<&'a V> {
