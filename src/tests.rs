@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use SequenceTrie;
+use super::SequenceTrie;
 
 fn make_trie() -> SequenceTrie<char, u32> {
     let mut trie = SequenceTrie::new();

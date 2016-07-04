@@ -8,7 +8,7 @@ use std::iter::Map;
 use std::default::Default;
 
 #[cfg(test)]
-mod test;
+mod tests;
 
 /// A `SequenceTrie` is recursively defined as a value and a map containing child Tries.
 ///
