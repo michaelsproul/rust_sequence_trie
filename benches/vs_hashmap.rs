@@ -1,7 +1,10 @@
-use std::collections::HashMap;
-use std_test::Bencher;
+#![feature(test)]
+extern crate test;
+extern crate sequence_trie;
 
-use SequenceTrie;
+use std::collections::HashMap;
+use test::Bencher;
+use sequence_trie::SequenceTrie;
 
 macro_rules! u32_benchmark {
     ($map_constructor: expr, $test_id: ident, $num_keys: expr, $key_length: expr) => (

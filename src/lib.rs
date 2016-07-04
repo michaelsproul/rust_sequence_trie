@@ -2,11 +2,6 @@
 //!
 //! See the `SequenceTrie` type for documentation.
 
-#![cfg_attr(all(feature = "nightly", test), feature(test))]
-
-#[cfg(all(feature = "nightly", test))]
-extern crate test as std_test;
-
 use std::hash::Hash;
 use std::collections::hash_map::{self, HashMap, Entry};
 use std::iter::Map;
@@ -14,8 +9,6 @@ use std::default::Default;
 
 #[cfg(test)]
 mod test;
-#[cfg(all(feature = "nightly", test))]
-mod benchmark;
 
 /// A `SequenceTrie` is recursively defined as a value and a map containing child Tries.
 ///
