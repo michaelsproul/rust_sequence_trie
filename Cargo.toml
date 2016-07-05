@@ -1,7 +1,6 @@
 [package]
-
 name = "sequence_trie"
-version = "0.0.13"
+version = "0.1.0"
 description = "Trie-like data-structure for storing sequences of values."
 
 license = "MIT"
@@ -13,5 +12,4 @@ repository = "https://github.com/michaelsproul/rust_sequence_trie"
 keywords = ["trie", "tree", "hash", "data-structure", "collection"]
 
 [lib]
-
 name = "sequence_trie"
