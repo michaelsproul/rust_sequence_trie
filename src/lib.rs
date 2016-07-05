@@ -119,19 +119,16 @@ impl<K, V> SequenceTrie<K, V> where K: TrieKey {
 
     /// Find a reference to a key's node, if it has one.
     pub fn get_node<'a, I: IntoIterator<Item=&'a K>>(&self, key: I) -> Option<&SequenceTrie<K, V>> {
-        let mut fragments = key.into_iter();
+        let mut current_node = self;
 
-        // Recursive base case, if the key is empty, return the node.
-        let fragment = match fragments.next() {
-            Some(head) => head,
-            None => return Some(self)
-        };
-
-        // Otherwise, recurse down the tree.
-        match self.children.get(fragment) {
-            Some(node) => node.get_node(fragments),
-            None => None
+        for fragment in key {
+            match current_node.children.get(fragment) {
+                Some(node) => current_node = node,
+                None => return None,
+            }
         }
+
+        Some(current_node)
     }
 
     /// Find a mutable reference to a key's value, if it has one.
@@ -141,19 +138,16 @@ impl<K, V> SequenceTrie<K, V> where K: TrieKey {
 
     /// Find a mutable reference to a key's node, if it has one.
     pub fn get_node_mut<'a, I: IntoIterator<Item=&'a K>>(&mut self, key: I) -> Option<&mut SequenceTrie<K, V>> {
-        let mut fragments = key.into_iter();
+        let mut current_node = Some(self);
 
-        // Recursive base case, if the key is empty, return the node.
-        let fragment = match fragments.next() {
-            Some(head) => head,
-            None => return Some(self)
-        };
-
-        // Otherwise, recurse down the tree.
-        match self.children.get_mut(fragment) {
-            Some(node) => node.get_node_mut(fragments),
-            None => None
+        for fragment in key {
+            match current_node.and_then(|node| node.children.get_mut(fragment)) {
+                Some(node) => current_node = Some(node),
+                None => return None,
+            }
         }
+
+        current_node
     }
 
     /// Find the longest prefix of nodes which match the given key.
