@@ -14,16 +14,14 @@ fn make_trie() -> SequenceTrie<char, u32> {
 #[test]
 fn get() {
     let trie = make_trie();
-    let data = [
-        (vec![], Some(0u32)),
-        (vec!['a'], Some(1u32)),
-        (vec!['a', 'b'], None),
-        (vec!['a', 'b', 'c'], None),
-        (vec!['a', 'b', 'x'], None),
-        (vec!['a', 'b', 'c', 'd'], Some(4u32)),
-        (vec!['a', 'b', 'x', 'y'], Some(25u32)),
-        (vec!['b', 'x', 'y'], None)
-    ];
+    let data = [(vec![], Some(0u32)),
+                (vec!['a'], Some(1u32)),
+                (vec!['a', 'b'], None),
+                (vec!['a', 'b', 'c'], None),
+                (vec!['a', 'b', 'x'], None),
+                (vec!['a', 'b', 'c', 'd'], Some(4u32)),
+                (vec!['a', 'b', 'x', 'y'], Some(25u32)),
+                (vec!['b', 'x', 'y'], None)];
     for &(ref key, value) in data.iter() {
         assert_eq!(trie.get(key), value.as_ref());
     }
@@ -40,17 +38,15 @@ fn get_mut() {
 #[test]
 fn get_ancestor() {
     let trie = make_trie();
-    let data = [
-        (vec![], 0u32),
-        (vec!['a'], 1u32),
-        (vec!['a', 'b'], 1u32),
-        (vec!['a', 'b', 'c'], 1u32),
-        (vec!['a', 'b', 'c', 'd'], 4u32),
-        (vec!['a', 'b', 'x'], 1u32),
-        (vec!['a', 'b', 'x', 'y'], 25u32),
-        (vec!['p', 'q'], 0u32),
-        (vec!['a', 'p', 'q'], 1u32)
-    ];
+    let data = [(vec![], 0u32),
+                (vec!['a'], 1u32),
+                (vec!['a', 'b'], 1u32),
+                (vec!['a', 'b', 'c'], 1u32),
+                (vec!['a', 'b', 'c', 'd'], 4u32),
+                (vec!['a', 'b', 'x'], 1u32),
+                (vec!['a', 'b', 'x', 'y'], 25u32),
+                (vec!['p', 'q'], 0u32),
+                (vec!['a', 'p', 'q'], 1u32)];
     for &(ref key, value) in data.iter() {
         assert_eq!(*trie.get_ancestor(key).unwrap(), value);
     }
@@ -70,7 +66,7 @@ fn get_prefix_nodes() {
 
 #[test]
 fn remove() {
-    let mut trie= make_trie();
+    let mut trie = make_trie();
     // If the node has children, its value should be set to `None`.
     println!("Remove ['a']");
     println!("Before: {:?}", trie);
@@ -114,9 +110,9 @@ fn remove() {
 #[test]
 fn key_iter() {
     let trie = make_trie();
-    let obs_keys: HashSet<Vec<char>> = trie.keys().map(|v| -> Vec<char> {
-        v.iter().map(|&&x| x).collect()
-    }).collect();
+    let obs_keys: HashSet<Vec<char>> = trie.keys()
+        .map(|v| -> Vec<char> { v.iter().map(|&&x| x).collect() })
+        .collect();
     let mut exp_keys: HashSet<Vec<char>> = HashSet::new();
     exp_keys.insert(vec![]);
     exp_keys.insert(vec!['a']);
@@ -127,7 +123,7 @@ fn key_iter() {
 
 #[derive(PartialEq, Eq, Hash, Clone)]
 struct Key {
-    field: usize
+    field: usize,
 }
 
 #[test]
