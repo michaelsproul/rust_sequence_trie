@@ -6,6 +6,7 @@ use std::hash::Hash;
 use std::collections::hash_map::{self, HashMap, Entry};
 use std::iter::IntoIterator;
 use std::default::Default;
+use std::marker::PhantomData;
 
 #[cfg(test)]
 mod tests;
@@ -151,37 +152,25 @@ impl<K, V> SequenceTrie<K, V> where K: TrieKey {
     }
 
     /// Find the longest prefix of nodes which match the given key.
-    pub fn get_prefix_nodes<'a, I: IntoIterator<Item=&'a K>>(&self, key: I) -> Vec<&SequenceTrie<K, V>> {
-        let mut node_path = vec![self];
-
-        for fragment in key {
-            match node_path.last().unwrap().children.get(fragment) {
-                Some(node) => node_path.push(node),
-                None => break
-            }
-        }
-        node_path
+    pub fn get_prefix_nodes<'key, I>(&self, key: I) -> Vec<&SequenceTrie<K, V>>
+            where I: 'key + IntoIterator<Item=&'key K> {
+        self.prefix_iter(key.into_iter()).collect()
     }
 
     /// Find the value of the nearest ancestor with a non-empty value, if one exists.
     ///
     /// If all ancestors have empty (`None`) values, `None` is returned.
-    pub fn get_ancestor<'a, I: IntoIterator<Item=&'a K>>(&self, key: I) -> Option<&V> {
+    pub fn get_ancestor<'key, I: 'key + IntoIterator<Item=&'key K>>(&self, key: I) -> Option<&V> {
         self.get_ancestor_node(key).and_then(|node| node.value.as_ref())
     }
 
     /// Find the nearest ancestor with a non-empty value, if one exists.
     ///
     /// If all ancestors have empty (`None`) values, `None` is returned.
-    pub fn get_ancestor_node<'a, I: IntoIterator<Item=&'a K>>(&self, key: I) -> Option<&SequenceTrie<K, V>> {
-        let node_path = self.get_prefix_nodes(key);
-
-        for node in node_path.iter().rev() {
-            if node.value.is_some() {
-                return Some(*node);
-            }
-        }
-        None
+    pub fn get_ancestor_node<'key, I: 'key + IntoIterator<Item=&'key K>>(&self, key: I) -> Option<&SequenceTrie<K, V>> {
+        self.prefix_iter(key)
+            .filter(|node| node.value.is_some())
+            .last()
     }
 
     /// Remove the node corresponding to the given key.
@@ -253,6 +242,16 @@ impl<K, V> SequenceTrie<K, V> where K: TrieKey {
     pub fn values(&self) -> Values<K, V> {
         Values {
             inner: self.iter()
+        }
+    }
+
+    /// Returns an iterator over the longest prefix of nodes which match the given key.
+    pub fn prefix_iter<'trie, 'key, I>(&'trie self, key: I) -> PrefixIter<'trie, 'key, K, V, I::IntoIter>
+            where I: 'key + IntoIterator<Item=&'key K> {
+        PrefixIter {
+            next_node: Some(self),
+            fragments: key.into_iter(),
+            _phantom: PhantomData,
         }
     }
 }
@@ -363,5 +362,41 @@ impl<K, V> Eq for SequenceTrie<K, V> where K: TrieKey, V: Eq {}
 impl<K, V> Default for SequenceTrie<K, V> where K: TrieKey {
     fn default() -> Self {
         SequenceTrie::new()
+    }
+}
+
+/// Iterator over the longest prefix of nodes which matches a key.
+pub struct PrefixIter<'trie, 'key, K, V, I>
+        where K: 'trie + TrieKey,
+        V: 'trie,
+        I: 'key + Iterator<Item=&'key K> {
+    next_node: Option<&'trie SequenceTrie<K, V>>,
+    fragments: I,
+    _phantom: PhantomData<&'key I>,
+}
+
+impl<'trie, 'key, K, V, I> Iterator for PrefixIter<'trie, 'key, K, V, I>
+    where K: 'trie + TrieKey,
+        V: 'trie,
+        I: 'key + Iterator<Item=&'key K> {
+
+    type Item = &'trie SequenceTrie<K, V>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if let Some(current_node) = self.next_node.take() {
+            if let Some(fragment) = self.fragments.next() {
+                self.next_node = current_node.children.get(fragment)
+            }
+
+            return Some(current_node);
+        }
+
+        None
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let lower = if self.next_node.is_some() {1} else {0};
+
+        (lower, self.fragments.size_hint().1)
     }
 }
