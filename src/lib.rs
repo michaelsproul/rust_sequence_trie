@@ -91,6 +91,13 @@ impl<K, V> SequenceTrie<K, V> where K: TrieKey {
         }
     }
 
+    /// Checks if this node is empty.
+    ///
+    /// A node is considered empty when it has no value and no children.
+    pub fn is_empty(&self) -> bool {
+        self.children.is_empty() && self.value.is_none()
+    }
+
     /// Insert a key and value into the SequenceTrie.
     ///
     /// Returns `None` if the key did not already correspond to a value, otherwise the old value is
@@ -228,11 +235,7 @@ impl<K, V> SequenceTrie<K, V> where K: TrieKey {
         }
 
         // If the node is childless and valueless, mark it for deletion.
-        if self.children.is_empty() && self.value.is_none() {
-            true
-        } else {
-            false
-        }
+        self.is_empty()
     }
 
     /// Return an iterator over all the key-value pairs in the collection.
