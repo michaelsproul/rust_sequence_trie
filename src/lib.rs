@@ -4,7 +4,7 @@
 
 use std::hash::Hash;
 use std::collections::hash_map::{self, HashMap, Entry};
-use std::iter::{IntoIterator, Map};
+use std::iter::IntoIterator;
 use std::default::Default;
 
 #[cfg(test)]
@@ -236,7 +236,7 @@ impl<K, V> SequenceTrie<K, V> where K: TrieKey {
     }
 
     /// Return an iterator over all the key-value pairs in the collection.
-    pub fn iter<'a>(&'a self) -> Iter<'a, K, V> {
+    pub fn iter(&self) -> Iter<K, V> {
         Iter {
             root: self,
             root_visited: false,
@@ -246,24 +246,16 @@ impl<K, V> SequenceTrie<K, V> where K: TrieKey {
     }
 
     /// Return an iterator over all the keys in the trie.
-    pub fn keys<'a>(&'a self) -> Keys<'a, K, V> {
-        // First fn coerced to a fn pointer (borrowed from HashMap impl).
-        fn first<A, B>((a, _): (A, B)) -> A { a }
-        let first: fn(KeyValuePair<'a, K, V>) -> Vec<&'a K> = first;
-
+    pub fn keys(&self) -> Keys<K, V> {
         Keys {
-            inner: self.iter().map(first)
+            inner: self.iter()
         }
     }
 
     /// Return an iterator over all the values stored in the trie.
-    pub fn values<'a>(&'a self) -> Values<'a, K, V> {
-        // Second fn coerced to a fn pointer (borrowed from HashMap impl).
-        fn second<A, B>((_, b): (A, B)) -> B { b }
-        let second: fn(KeyValuePair<'a, K, V>) -> &'a V = second;
-
+    pub fn values(&self) -> Values<K, V> {
         Values {
-            inner: self.iter().map(second)
+            inner: self.iter()
         }
     }
 }
@@ -281,12 +273,12 @@ pub type KeyValuePair<'a, K, V> = (Vec<&'a K>, &'a V);
 
 /// Iterator over the keys of a `SequenceTrie`.
 pub struct Keys<'a, K: 'a, V: 'a> where K: TrieKey {
-    inner: Map<Iter<'a, K, V>, fn(KeyValuePair<'a, K, V>) -> Vec<&'a K>>
+    inner: Iter<'a, K, V>
 }
 
 /// Iterator over the values of a `SequenceTrie`.
 pub struct Values<'a, K: 'a, V: 'a> where K: TrieKey {
-    inner: Map<Iter<'a, K, V>, fn(KeyValuePair<'a, K, V>) -> &'a V>
+    inner: Iter<'a, K, V>
 }
 
 /// Information stored on the iteration stack whilst exploring.
@@ -351,7 +343,7 @@ impl<'a, K, V> Iterator for Keys<'a, K, V> where K: TrieKey {
     type Item = Vec<&'a K>;
 
     fn next(&mut self) -> Option<Vec<&'a K>> {
-        self.inner.next()
+        self.inner.next().map(|(k, _)| k)
     }
 }
 
@@ -359,7 +351,7 @@ impl<'a, K, V> Iterator for Values<'a, K, V> where K: TrieKey {
     type Item = &'a V;
 
     fn next(&mut self) -> Option<&'a V> {
-        self.inner.next()
+        self.inner.next().map(|(_, v)| v)
     }
 }
 
