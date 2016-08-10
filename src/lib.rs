@@ -169,7 +169,7 @@ impl<K, V> SequenceTrie<K, V>
     pub fn get_prefix_nodes<'key, I>(&self, key: I) -> Vec<&SequenceTrie<K, V>>
         where I: 'key + IntoIterator<Item = &'key K>
     {
-        self.prefix_iter(key.into_iter()).collect()
+        self.prefix_iter(key).collect()
     }
 
     /// Finds the value of the nearest ancestor with a non-empty value, if one exists.
