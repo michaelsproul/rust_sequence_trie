@@ -9,7 +9,7 @@ I'm still undecided about what to call this data-structure, as it's kind of half
 
 For more information, see the [documentation][doc].
 
-[doc]: https://michaelsproul.github.io/rust_sequence_trie/
+[doc]: https://docs.rs/sequence_trie/
 
 # Usage
 

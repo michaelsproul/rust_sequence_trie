@@ -6,7 +6,7 @@ description = "Trie-like data-structure for storing sequences of values."
 license = "MIT"
 authors = ["Michael Sproul <micsproul@gmail.com>", "Alex Gulyás <gulyas.alex@gmail.com>"]
 
-documentation = "https://michaelsproul.github.io/rust_sequence_trie/"
+documentation = "https://docs.rs/sequence_trie/"
 repository = "https://github.com/michaelsproul/rust_sequence_trie"
 
 keywords = ["trie", "tree", "hash", "data-structure", "collection"]
