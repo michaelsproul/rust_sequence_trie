@@ -189,3 +189,12 @@ fn default() {
     let empty_trie: SequenceTrie<u8, i32> = ::std::default::Default::default();
     assert_eq!(empty_trie, SequenceTrie::new());
 }
+
+#[test]
+fn string_trie() {
+    let mut trie: SequenceTrie<String, ()> = SequenceTrie::new();
+    trie.insert_owned(vec!["hello".to_string(), "world".to_string()], ());
+    trie.insert(&["hello".to_string(), "world".to_string()], ());
+    trie.insert(vec!["hello", "world"], ());
+    trie.insert(["hello", "world"].iter().map(|&x| x), ());
+}

@@ -6,6 +6,8 @@ use std::hash::Hash;
 use std::collections::hash_map::{self, HashMap, Entry};
 use std::iter::IntoIterator;
 use std::default::Default;
+use std::borrow::{Borrow, ToOwned};
+use std::mem;
 use std::marker::PhantomData;
 
 #[cfg(test)]
@@ -107,16 +109,25 @@ impl<K, V> SequenceTrie<K, V>
     ///
     /// Returns `None` if the key did not already correspond to a value, otherwise the old value is
     /// returned.
-    pub fn insert<'key, I>(&mut self, key: I, value: V) -> Option<V>
-        where I: IntoIterator<Item = &'key K>
+    pub fn insert<'key, I, Q: 'key + ?Sized>(&mut self, key: I, value: V) -> Option<V>
+        where I: IntoIterator<Item = &'key Q>,
+              Q: ToOwned<Owned = K>,
+              K: Borrow<Q>
+    {
+        self.insert_owned(key.into_iter().map(ToOwned::to_owned), value)
+    }
+
+    /// Version of `insert` that takes an owned sequence of key fragments.
+    ///
+    /// This function is used internally by `insert`.
+    pub fn insert_owned<I>(&mut self, key: I, value: V) -> Option<V>
+        where I: IntoIterator<Item = K>
     {
         let key_node = key.into_iter().fold(self, |current_node, fragment| {
-            current_node.children.entry(fragment.clone()).or_insert_with(Self::new)
+            current_node.children.entry(fragment).or_insert_with(Self::new)
         });
 
-        let old = key_node.value.take();
-        key_node.value = Some(value);
-        old
+        mem::replace(&mut key_node.value, Some(value))
     }
 
     /// Finds a reference to a key's value, if it has one.
