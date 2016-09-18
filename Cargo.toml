@@ -3,7 +3,7 @@ name = "sequence_trie"
 version = "0.2.0"
 description = "Trie-like data-structure for storing sequences of values."
 
-license = "MIT"
+license = "MIT/Apache-2.0"
 authors = ["Michael Sproul <micsproul@gmail.com>", "Alex Gulyás <gulyas.alex@gmail.com>"]
 
 documentation = "https://docs.rs/sequence_trie/"

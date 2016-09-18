@@ -28,4 +28,15 @@ https://github.com/michaelsproul/rust_radix_trie
 
 # License
 
-MIT License. Copyright (c) Michael Sproul 2015.
+Licensed under either of:
+
+ * [Apache License, Version 2.0](http://www.apache.org/licenses/LICENSE-2.0)
+ * [MIT license](http://opensource.org/licenses/MIT)
+
+at your option.
+
+## Contribution
+
+Unless you explicitly state otherwise, any contribution intentionally submitted
+for inclusion in the work by you shall be dual licensed as above, without any
+additional terms or conditions.
