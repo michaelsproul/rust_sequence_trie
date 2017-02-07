@@ -131,15 +131,19 @@ impl<K, V> SequenceTrie<K, V>
     }
 
     /// Finds a reference to a key's value, if it has one.
-    pub fn get<'key, I>(&self, key: I) -> Option<&V>
-        where I: IntoIterator<Item = &'key K>
+    pub fn get<'key, I, Q: ?Sized>(&self, key: I) -> Option<&V>
+        where I: IntoIterator<Item = &'key Q>,
+              K: Borrow<Q>,
+              Q: Hash + Eq + 'key
     {
         self.get_node(key).and_then(|node| node.value.as_ref())
     }
 
     /// Finds a reference to a key's node, if it has one.
-    pub fn get_node<'key, I>(&self, key: I) -> Option<&SequenceTrie<K, V>>
-        where I: IntoIterator<Item = &'key K>
+    pub fn get_node<'key, I, Q: ?Sized>(&self, key: I) -> Option<&SequenceTrie<K, V>>
+        where I: IntoIterator<Item = &'key Q>,
+              K: Borrow<Q>,
+              Q: Hash + Eq + 'key
     {
         let mut current_node = self;
 
@@ -154,15 +158,19 @@ impl<K, V> SequenceTrie<K, V>
     }
 
     /// Finds a mutable reference to a key's value, if it has one.
-    pub fn get_mut<'key, I>(&mut self, key: I) -> Option<&mut V>
-        where I: IntoIterator<Item = &'key K>
+    pub fn get_mut<'key, I, Q: ?Sized>(&mut self, key: I) -> Option<&mut V>
+        where I: IntoIterator<Item = &'key Q>,
+              K: Borrow<Q>,
+              Q: Hash + Eq + 'key
     {
         self.get_node_mut(key).and_then(|node| node.value.as_mut())
     }
 
     /// Finds a mutable reference to a key's node, if it has one.
-    pub fn get_node_mut<'key, I>(&mut self, key: I) -> Option<&mut SequenceTrie<K, V>>
-        where I: IntoIterator<Item = &'key K>
+    pub fn get_node_mut<'key, I, Q: ?Sized>(&mut self, key: I) -> Option<&mut SequenceTrie<K, V>>
+        where I: IntoIterator<Item = &'key Q>,
+              K: Borrow<Q>,
+              Q: Hash + Eq + 'key
     {
         let mut current_node = Some(self);
 
@@ -288,6 +296,10 @@ impl<K, V> SequenceTrie<K, V>
             fragments: key.into_iter(),
             _phantom: PhantomData,
         }
+    }
+
+    pub fn children(&self) -> Vec<&Self> {
+        self.children.values().collect()
     }
 }
 
