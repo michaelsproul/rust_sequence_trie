@@ -302,6 +302,11 @@ impl<K, V> SequenceTrie<K, V>
     pub fn children(&self) -> Vec<&Self> {
         self.children.values().collect()
     }
+
+    /// Children of this node, with their associated keys in arbitrary order.
+    pub fn children_with_keys<'a>(&'a self) -> Vec<(&'a K, &'a Self)> {
+        self.children.iter().collect()
+    }
 }
 
 /// Iterator over the keys and values of a `SequenceTrie`.
