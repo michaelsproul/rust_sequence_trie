@@ -298,6 +298,7 @@ impl<K, V> SequenceTrie<K, V>
         }
     }
 
+    /// Return all the children of this node, in an arbitrary order.
     pub fn children(&self) -> Vec<&Self> {
         self.children.values().collect()
     }
