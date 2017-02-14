@@ -98,11 +98,26 @@ impl<K, V> SequenceTrie<K, V>
         }
     }
 
+    /// Retrieve the value stored at this node.
+    pub fn value(&self) -> Option<&V> {
+        self.value.as_ref()
+    }
+
+    /// Retrieve a mutable reference to the value stored at this node.
+    pub fn value_mut(&mut self) -> Option<&mut V> {
+        self.value.as_mut()
+    }
+
     /// Checks if this node is empty.
     ///
     /// A node is considered empty when it has no value and no children.
     pub fn is_empty(&self) -> bool {
-        self.children.is_empty() && self.value.is_none()
+        self.is_leaf() && self.value.is_none()
+    }
+
+    /// Checks if this node has no descendants.
+    pub fn is_leaf(&self) -> bool {
+        self.children.is_empty()
     }
 
     /// Inserts a key and value into the SequenceTrie.
