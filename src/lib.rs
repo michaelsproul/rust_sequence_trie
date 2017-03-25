@@ -280,6 +280,26 @@ impl<K, V> SequenceTrie<K, V>
         self.is_empty()
     }
 
+    /// Recursively apply a function to every node in the trie.
+    ///
+    /// Nodes are visited "bottom-up" (children before parent).
+    /// If `f` returns a value, it replaces the value at that node.
+    /// Otherwise, the node's value remains unchanged.
+    pub fn map<F>(&mut self, f: F) where F: Fn(&Self) -> Option<V> {
+        self.map_rec(&f)
+    }
+
+    /// Internal version of map that takes the closure by reference.
+    fn map_rec<F>(&mut self, f: &F) where F: Fn(&Self) -> Option<V> {
+        for child in self.children.values_mut() {
+            child.map_rec(f);
+        }
+
+        if let Some(v) = f(&*self) {
+            self.value = Some(v);
+        }
+    }
+
     /// Returns an iterator over all the key-value pairs in the collection.
     pub fn iter(&self) -> Iter<K, V> {
         Iter {

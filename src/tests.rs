@@ -198,3 +198,14 @@ fn string_trie() {
     trie.insert(vec!["hello", "world"], ());
     trie.insert(["hello", "world"].iter().map(|&x| x), ());
 }
+
+#[test]
+fn map() {
+    let mut trie = SequenceTrie::new();
+    trie.insert(&[0u32], 0u32);
+    trie.insert(&[5u32], 10u32);
+    trie.map(|node| node.value().map(|x| x + 1));
+    for (k, v) in trie.iter() {
+        assert_eq!(*v, 2*k[0] + 1);
+    }
+}
