@@ -214,8 +214,10 @@ impl<K, V, S> SequenceTrie<K, V, S>
     }
 
     /// Finds the longest prefix of nodes which match the given key.
-    pub fn get_prefix_nodes<'key, I>(&self, key: I) -> Vec<&SequenceTrie<K, V, S>>
-        where I: 'key + IntoIterator<Item = &'key K>
+    pub fn get_prefix_nodes<'key, I, Q: ?Sized>(&self, key: I) -> Vec<&SequenceTrie<K, V, S>>
+        where I: 'key + IntoIterator<Item = &'key Q>,
+              K: Borrow<Q>,
+              Q: Hash + Eq + 'key
     {
         self.prefix_iter(key).collect()
     }
@@ -223,8 +225,10 @@ impl<K, V, S> SequenceTrie<K, V, S>
     /// Finds the value of the nearest ancestor with a non-empty value, if one exists.
     ///
     /// If all ancestors have empty (`None`) values, `None` is returned.
-    pub fn get_ancestor<'key, I>(&self, key: I) -> Option<&V>
-        where I: 'key + IntoIterator<Item = &'key K>
+    pub fn get_ancestor<'key, I, Q: ?Sized>(&self, key: I) -> Option<&V>
+        where I: 'key + IntoIterator<Item = &'key Q>,
+              K: Borrow<Q>,
+              Q: Hash + Eq + 'key
     {
         self.get_ancestor_node(key).and_then(|node| node.value.as_ref())
     }
@@ -232,8 +236,10 @@ impl<K, V, S> SequenceTrie<K, V, S>
     /// Finds the nearest ancestor with a non-empty value, if one exists.
     ///
     /// If all ancestors have empty (`None`) values, `None` is returned.
-    pub fn get_ancestor_node<'key, I>(&self, key: I) -> Option<&SequenceTrie<K, V, S>>
-        where I: 'key + IntoIterator<Item = &'key K>
+    pub fn get_ancestor_node<'key, I, Q: ?Sized>(&self, key: I) -> Option<&SequenceTrie<K, V, S>>
+        where I: 'key + IntoIterator<Item = &'key Q>,
+              K: Borrow<Q>,
+              Q: Hash + Eq + 'key
     {
         self.prefix_iter(key)
             .filter(|node| node.value.is_some())
@@ -251,8 +257,10 @@ impl<K, V, S> SequenceTrie<K, V, S>
     /// from the key node until a node with a non-empty value or children is reached.
     ///
     /// If the key doesn't match a node in the Trie, no action is taken.
-    pub fn remove<'key, I>(&mut self, key: I)
-        where I: IntoIterator<Item = &'key K>
+    pub fn remove<'key, I, Q: ?Sized>(&mut self, key: I)
+        where I: IntoIterator<Item = &'key Q>,
+              K: Borrow<Q>,
+              Q: Hash + Eq + 'key
     {
         self.remove_recursive(key);
     }
@@ -263,8 +271,10 @@ impl<K, V, S> SequenceTrie<K, V, S>
     /// Return `true` if the node should be deleted.
     ///
     /// See `remove` above.
-    fn remove_recursive<'key, I>(&mut self, key: I) -> bool
-        where I: IntoIterator<Item = &'key K>
+    fn remove_recursive<'key, I, Q: ?Sized>(&mut self, key: I) -> bool
+        where I: IntoIterator<Item = &'key Q>,
+              K: Borrow<Q>,
+              Q: Hash + Eq + 'key
     {
         let mut fragments = key.into_iter();
         match fragments.next() {
@@ -275,14 +285,13 @@ impl<K, V, S> SequenceTrie<K, V, S>
 
             // Recursive case: Inner node, delete children.
             Some(fragment) => {
-                // Find the child entry in the node's hashmap.
-                if let Entry::Occupied(mut entry) = self.children.entry(fragment.clone()) {
-                    // Work out whether to delete the child by calling remove recursively.
-                    let delete_child = entry.get_mut().remove_recursive(fragments);
+                let delete_child = match self.children.get_mut(fragment) {
+                    Some(child) => child.remove_recursive(fragments),
+                    None => false,
+                };
 
-                    if delete_child {
-                        entry.remove();
-                    }
+                if delete_child {
+                    self.children.remove(fragment);
                 }
                 // NB: If the child isn't found, false will be returned.
                 // The `self` node is either a leaf, with a non-trivial value, or an
@@ -335,10 +344,12 @@ impl<K, V, S> SequenceTrie<K, V, S>
     }
 
     /// Returns an iterator over the longest prefix of nodes which match the given key.
-    pub fn prefix_iter<'trie, 'key, I>(&'trie self,
-                                       key: I)
-                                       -> PrefixIter<'trie, 'key, K, V, I::IntoIter, S>
-        where I: 'key + IntoIterator<Item = &'key K>
+    pub fn prefix_iter<'trie, 'key, I, Q: ?Sized>(&'trie self,
+                                                  key: I)
+                                                  -> PrefixIter<'trie, 'key, K, V, Q, I::IntoIter, S>
+        where I: IntoIterator<Item = &'key Q>,
+              K: Borrow<Q>,
+              Q: Hash + Eq + 'key
     {
         PrefixIter {
             next_node: Some(self),
@@ -492,10 +503,12 @@ impl<K, V, S> Default for SequenceTrie<K, V, S>
 }
 
 /// Iterator over the longest prefix of nodes which matches a key.
-pub struct PrefixIter<'trie, 'key, K, V, I, S = RandomState>
+pub struct PrefixIter<'trie, 'key, K, V, Q: ?Sized, I, S = RandomState>
     where K: 'trie + TrieKey,
           V: 'trie,
-          I: 'key + Iterator<Item = &'key K>,
+          I: 'key + Iterator<Item = &'key Q>,
+          K: Borrow<Q>,
+          Q: Hash + Eq + 'key,
           S: 'trie + BuildHasher
 {
     next_node: Option<&'trie SequenceTrie<K, V, S>>,
@@ -503,10 +516,12 @@ pub struct PrefixIter<'trie, 'key, K, V, I, S = RandomState>
     _phantom: PhantomData<&'key I>,
 }
 
-impl<'trie, 'key, K, V, I, S> Iterator for PrefixIter<'trie, 'key, K, V, I, S>
+impl<'trie, 'key, K, V, Q: ?Sized, I, S> Iterator for PrefixIter<'trie, 'key, K, V, Q, I, S>
     where K: 'trie + TrieKey,
           V: 'trie,
-          I: 'key + Iterator<Item = &'key K>,
+          I: 'key + Iterator<Item = &'key Q>,
+          K: Borrow<Q>,
+          Q: Hash + Eq + 'key,
           S: BuildHasher
 {
     type Item = &'trie SequenceTrie<K, V, S>;
