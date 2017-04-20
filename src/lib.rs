@@ -3,7 +3,8 @@
 //! See the `SequenceTrie` type for documentation.
 
 use std::hash::Hash;
-use std::collections::hash_map::{self, HashMap, Entry};
+use std::collections::hash_map::{self, HashMap, Entry, RandomState};
+use std::hash::BuildHasher;
 use std::iter::IntoIterator;
 use std::default::Default;
 use std::borrow::{Borrow, ToOwned};
@@ -70,14 +71,15 @@ mod tests;
 /// All leaf nodes have non-trivial values (not equal to `None`). This invariant is maintained by
 /// the insertion and removal methods and can be relied upon.
 #[derive(Debug, Clone)]
-pub struct SequenceTrie<K, V>
-    where K: TrieKey
+pub struct SequenceTrie<K, V, S = RandomState>
+    where K: TrieKey,
+          S: BuildHasher
 {
     /// Node value.
     value: Option<V>,
 
     /// Node children as a hashmap keyed by key fragments.
-    children: HashMap<K, SequenceTrie<K, V>>,
+    children: HashMap<K, SequenceTrie<K, V, S>, S>,
 }
 
 /// Aggregate trait for types which can be used to key a `SequenceTrie`.
@@ -92,9 +94,18 @@ impl<K, V> SequenceTrie<K, V>
 {
     /// Creates a new `SequenceTrie` node with no value and an empty child map.
     pub fn new() -> SequenceTrie<K, V> {
+        Self::with_hasher(RandomState::new())
+    }
+}
+
+impl<K, V, S> SequenceTrie<K, V, S>
+    where K: TrieKey,
+          S: BuildHasher + Clone
+{
+    pub fn with_hasher(hash_builder: S) -> SequenceTrie<K, V, S> {
         SequenceTrie {
             value: None,
-            children: HashMap::new(),
+            children: HashMap::with_hasher(hash_builder),
         }
     }
 
@@ -139,7 +150,10 @@ impl<K, V> SequenceTrie<K, V>
         where I: IntoIterator<Item = K>
     {
         let key_node = key.into_iter().fold(self, |current_node, fragment| {
-            current_node.children.entry(fragment).or_insert_with(Self::new)
+            let hash_builder = current_node.children.hasher().clone();
+            current_node.children
+                .entry(fragment)
+                .or_insert_with(|| Self::with_hasher(hash_builder))
         });
 
         mem::replace(&mut key_node.value, Some(value))
@@ -155,7 +169,7 @@ impl<K, V> SequenceTrie<K, V>
     }
 
     /// Finds a reference to a key's node, if it has one.
-    pub fn get_node<'key, I, Q: ?Sized>(&self, key: I) -> Option<&SequenceTrie<K, V>>
+    pub fn get_node<'key, I, Q: ?Sized>(&self, key: I) -> Option<&SequenceTrie<K, V, S>>
         where I: IntoIterator<Item = &'key Q>,
               K: Borrow<Q>,
               Q: Hash + Eq + 'key
@@ -182,7 +196,7 @@ impl<K, V> SequenceTrie<K, V>
     }
 
     /// Finds a mutable reference to a key's node, if it has one.
-    pub fn get_node_mut<'key, I, Q: ?Sized>(&mut self, key: I) -> Option<&mut SequenceTrie<K, V>>
+    pub fn get_node_mut<'key, I, Q: ?Sized>(&mut self, key: I) -> Option<&mut SequenceTrie<K, V, S>>
         where I: IntoIterator<Item = &'key Q>,
               K: Borrow<Q>,
               Q: Hash + Eq + 'key
@@ -200,7 +214,7 @@ impl<K, V> SequenceTrie<K, V>
     }
 
     /// Finds the longest prefix of nodes which match the given key.
-    pub fn get_prefix_nodes<'key, I>(&self, key: I) -> Vec<&SequenceTrie<K, V>>
+    pub fn get_prefix_nodes<'key, I>(&self, key: I) -> Vec<&SequenceTrie<K, V, S>>
         where I: 'key + IntoIterator<Item = &'key K>
     {
         self.prefix_iter(key).collect()
@@ -218,7 +232,7 @@ impl<K, V> SequenceTrie<K, V>
     /// Finds the nearest ancestor with a non-empty value, if one exists.
     ///
     /// If all ancestors have empty (`None`) values, `None` is returned.
-    pub fn get_ancestor_node<'key, I>(&self, key: I) -> Option<&SequenceTrie<K, V>>
+    pub fn get_ancestor_node<'key, I>(&self, key: I) -> Option<&SequenceTrie<K, V, S>>
         where I: 'key + IntoIterator<Item = &'key K>
     {
         self.prefix_iter(key)
@@ -301,7 +315,7 @@ impl<K, V> SequenceTrie<K, V>
     }
 
     /// Returns an iterator over all the key-value pairs in the collection.
-    pub fn iter(&self) -> Iter<K, V> {
+    pub fn iter(&self) -> Iter<K, V, S> {
         Iter {
             root: self,
             root_visited: false,
@@ -311,19 +325,19 @@ impl<K, V> SequenceTrie<K, V>
     }
 
     /// Returns an iterator over all the keys in the trie.
-    pub fn keys(&self) -> Keys<K, V> {
+    pub fn keys(&self) -> Keys<K, V, S> {
         Keys { inner: self.iter() }
     }
 
     /// Returns an iterator over all the values stored in the trie.
-    pub fn values(&self) -> Values<K, V> {
+    pub fn values(&self) -> Values<K, V, S> {
         Values { inner: self.iter() }
     }
 
     /// Returns an iterator over the longest prefix of nodes which match the given key.
     pub fn prefix_iter<'trie, 'key, I>(&'trie self,
                                        key: I)
-                                       -> PrefixIter<'trie, 'key, K, V, I::IntoIter>
+                                       -> PrefixIter<'trie, 'key, K, V, I::IntoIter, S>
         where I: 'key + IntoIterator<Item = &'key K>
     {
         PrefixIter {
@@ -345,10 +359,11 @@ impl<K, V> SequenceTrie<K, V>
 }
 
 /// Iterator over the keys and values of a `SequenceTrie`.
-pub struct Iter<'a, K: 'a, V: 'a>
-    where K: TrieKey
+pub struct Iter<'a, K: 'a, V: 'a, S = RandomState>
+    where K: TrieKey,
+          S: 'a + BuildHasher
 {
-    root: &'a SequenceTrie<K, V>,
+    root: &'a SequenceTrie<K, V, S>,
     root_visited: bool,
     key: Vec<&'a K>,
     stack: Vec<StackItem<'a, K, V>>,
@@ -358,17 +373,19 @@ pub struct Iter<'a, K: 'a, V: 'a>
 pub type KeyValuePair<'a, K, V> = (Vec<&'a K>, &'a V);
 
 /// Iterator over the keys of a `SequenceTrie`.
-pub struct Keys<'a, K: 'a, V: 'a>
-    where K: TrieKey
+pub struct Keys<'a, K: 'a, V: 'a, S: 'a = RandomState>
+    where K: TrieKey,
+          S: BuildHasher
 {
-    inner: Iter<'a, K, V>,
+    inner: Iter<'a, K, V, S>,
 }
 
 /// Iterator over the values of a `SequenceTrie`.
-pub struct Values<'a, K: 'a, V: 'a>
-    where K: TrieKey
+pub struct Values<'a, K: 'a, V: 'a, S: 'a = RandomState>
+    where K: TrieKey,
+          S: BuildHasher
 {
-    inner: Iter<'a, K, V>,
+    inner: Iter<'a, K, V, S>,
 }
 
 /// Information stored on the iteration stack whilst exploring.
@@ -465,31 +482,34 @@ impl<K, V> Eq for SequenceTrie<K, V>
           V: Eq
 {}
 
-impl<K, V> Default for SequenceTrie<K, V>
-    where K: TrieKey
+impl<K, V, S> Default for SequenceTrie<K, V, S>
+    where K: TrieKey,
+          S: Default + BuildHasher + Clone
 {
     fn default() -> Self {
-        SequenceTrie::new()
+        SequenceTrie::with_hasher(S::default())
     }
 }
 
 /// Iterator over the longest prefix of nodes which matches a key.
-pub struct PrefixIter<'trie, 'key, K, V, I>
+pub struct PrefixIter<'trie, 'key, K, V, I, S = RandomState>
     where K: 'trie + TrieKey,
           V: 'trie,
-          I: 'key + Iterator<Item = &'key K>
+          I: 'key + Iterator<Item = &'key K>,
+          S: 'trie + BuildHasher
 {
-    next_node: Option<&'trie SequenceTrie<K, V>>,
+    next_node: Option<&'trie SequenceTrie<K, V, S>>,
     fragments: I,
     _phantom: PhantomData<&'key I>,
 }
 
-impl<'trie, 'key, K, V, I> Iterator for PrefixIter<'trie, 'key, K, V, I>
+impl<'trie, 'key, K, V, I, S> Iterator for PrefixIter<'trie, 'key, K, V, I, S>
     where K: 'trie + TrieKey,
           V: 'trie,
-          I: 'key + Iterator<Item = &'key K>
+          I: 'key + Iterator<Item = &'key K>,
+          S: BuildHasher
 {
-    type Item = &'trie SequenceTrie<K, V>;
+    type Item = &'trie SequenceTrie<K, V, S>;
 
     fn next(&mut self) -> Option<Self::Item> {
         if let Some(current_node) = self.next_node.take() {
