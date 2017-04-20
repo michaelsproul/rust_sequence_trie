@@ -370,14 +370,14 @@ impl<K, V, S> SequenceTrie<K, V, S>
 }
 
 /// Iterator over the keys and values of a `SequenceTrie`.
-pub struct Iter<'a, K: 'a, V: 'a, S = RandomState>
+pub struct Iter<'a, K: 'a, V: 'a, S: 'a = RandomState>
     where K: TrieKey,
-          S: 'a + BuildHasher
+          S: BuildHasher
 {
     root: &'a SequenceTrie<K, V, S>,
     root_visited: bool,
     key: Vec<&'a K>,
-    stack: Vec<StackItem<'a, K, V>>,
+    stack: Vec<StackItem<'a, K, V, S>>,
 }
 
 /// Vector of key fragment references and values, yielded during iteration.
@@ -400,22 +400,25 @@ pub struct Values<'a, K: 'a, V: 'a, S: 'a = RandomState>
 }
 
 /// Information stored on the iteration stack whilst exploring.
-struct StackItem<'a, K: 'a, V: 'a>
-    where K: TrieKey
+struct StackItem<'a, K: 'a, V: 'a, S: 'a = RandomState>
+    where K: TrieKey,
+          S: BuildHasher
 {
-    child_iter: hash_map::Iter<'a, K, SequenceTrie<K, V>>,
+    child_iter: hash_map::Iter<'a, K, SequenceTrie<K, V, S>>,
 }
 
 /// Delayed action type for iteration stack manipulation.
-enum IterAction<'a, K: 'a, V: 'a>
-    where K: TrieKey
+enum IterAction<'a, K: 'a, V: 'a, S: 'a>
+    where K: TrieKey,
+          S: BuildHasher
 {
-    Push(&'a K, &'a SequenceTrie<K, V>),
+    Push(&'a K, &'a SequenceTrie<K, V, S>),
     Pop,
 }
 
-impl<'a, K, V> Iterator for Iter<'a, K, V>
-    where K: TrieKey
+impl<'a, K, V, S> Iterator for Iter<'a, K, V, S>
+    where K: TrieKey,
+          S: BuildHasher
 {
     type Item = KeyValuePair<'a, K, V>;
 
@@ -459,8 +462,9 @@ impl<'a, K, V> Iterator for Iter<'a, K, V>
     }
 }
 
-impl<'a, K, V> Iterator for Keys<'a, K, V>
-    where K: TrieKey
+impl<'a, K, V, S> Iterator for Keys<'a, K, V, S>
+    where K: TrieKey,
+          S: BuildHasher,
 {
     type Item = Vec<&'a K>;
 
@@ -469,8 +473,9 @@ impl<'a, K, V> Iterator for Keys<'a, K, V>
     }
 }
 
-impl<'a, K, V> Iterator for Values<'a, K, V>
-    where K: TrieKey
+impl<'a, K, V, S> Iterator for Values<'a, K, V, S>
+    where K: TrieKey,
+          S: BuildHasher
 {
     type Item = &'a V;
 
@@ -479,18 +484,20 @@ impl<'a, K, V> Iterator for Values<'a, K, V>
     }
 }
 
-impl<K, V> PartialEq for SequenceTrie<K, V>
+impl<K, V, S> PartialEq for SequenceTrie<K, V, S>
     where K: TrieKey,
-          V: PartialEq
+          V: PartialEq,
+          S: BuildHasher
 {
     fn eq(&self, other: &Self) -> bool {
         self.value == other.value && self.children == other.children
     }
 }
 
-impl<K, V> Eq for SequenceTrie<K, V>
+impl<K, V, S> Eq for SequenceTrie<K, V, S>
     where K: TrieKey,
-          V: Eq
+          V: Eq,
+          S: BuildHasher
 {}
 
 impl<K, V, S> Default for SequenceTrie<K, V, S>
