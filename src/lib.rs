@@ -3,7 +3,7 @@
 //! See the `SequenceTrie` type for documentation.
 
 use std::hash::Hash;
-use std::collections::hash_map::{self, HashMap, Entry, RandomState};
+use std::collections::hash_map::{self, HashMap, RandomState};
 use std::hash::BuildHasher;
 use std::iter::IntoIterator;
 use std::default::Default;
