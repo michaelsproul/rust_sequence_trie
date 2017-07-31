@@ -86,8 +86,8 @@ pub struct SequenceTrie<K, V, S = RandomState>
 ///
 /// This trait is automatically implemented for all types implementing
 /// the supertraits.
-pub trait TrieKey: 'static + PartialEq + Eq + Hash + Clone {}
-impl<K> TrieKey for K where K: 'static + PartialEq + Eq + Hash + Clone {}
+pub trait TrieKey: Eq + Hash {}
+impl<K> TrieKey for K where K: Eq + Hash {}
 
 impl<K, V> SequenceTrie<K, V>
     where K: TrieKey

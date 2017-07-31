@@ -1,6 +1,6 @@
 [package]
 name = "sequence_trie"
-version = "0.3.3"
+version = "0.3.4"
 description = "Trie-like data-structure for storing sequences of values."
 
 license = "MIT/Apache-2.0"
