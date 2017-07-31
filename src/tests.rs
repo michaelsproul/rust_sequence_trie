@@ -209,3 +209,12 @@ fn map() {
         assert_eq!(*v, 2*k[0] + 1);
     }
 }
+
+#[test]
+fn non_static_lifetime() {
+    let a = format!("a");
+    let b = format!("b");
+    let mut trie: SequenceTrie<&str, u32> = SequenceTrie::new();
+
+    trie.insert(&[&a[..], &b[..]], 0u32);
+}
