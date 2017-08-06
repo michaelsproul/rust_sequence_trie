@@ -2,9 +2,17 @@
 //!
 //! See the `SequenceTrie` type for documentation.
 
+#[cfg(not(feature = "btreemap"))]
 use std::hash::Hash;
-use std::collections::hash_map::{self, HashMap, RandomState};
+#[cfg(not(feature = "btreemap"))]
+use std::collections::hash_map::{self, HashMap};
+
+#[cfg(feature = "btreemap")]
+use std::collections::{btree_map, BTreeMap};
+
 use std::hash::BuildHasher;
+use std::collections::hash_map::RandomState;
+
 use std::iter::IntoIterator;
 use std::default::Default;
 use std::borrow::{Borrow, ToOwned};
@@ -71,9 +79,10 @@ mod tests;
 /// All leaf nodes have non-trivial values (not equal to `None`). This invariant is maintained by
 /// the insertion and removal methods and can be relied upon.
 #[derive(Debug, Clone)]
+#[cfg(not(feature = "btreemap"))]
 pub struct SequenceTrie<K, V, S = RandomState>
     where K: TrieKey,
-          S: BuildHasher
+          S: BuildHasher,
 {
     /// Node value.
     value: Option<V>,
@@ -82,25 +91,50 @@ pub struct SequenceTrie<K, V, S = RandomState>
     children: HashMap<K, SequenceTrie<K, V, S>, S>,
 }
 
+#[derive(Debug, Clone)]
+#[cfg(feature = "btreemap")]
+pub struct SequenceTrie<K, V, S = RandomState>
+    where K: TrieKey,
+          S: BuildHasher,
+{
+    /// Node value.
+    value: Option<V>,
+
+    /// Node children as a btreemap keyed by key fragments.
+    children: BTreeMap<K, SequenceTrie<K, V, S>>,
+
+    /// Fake hasher for compatibility.
+    _phantom: PhantomData<S>,
+}
+
 /// Aggregate trait for types which can be used to key a `SequenceTrie`.
 ///
 /// This trait is automatically implemented for all types implementing
 /// the supertraits.
+#[cfg(not(feature = "btreemap"))]
 pub trait TrieKey: Eq + Hash {}
+#[cfg(not(feature = "btreemap"))]
 impl<K> TrieKey for K where K: Eq + Hash {}
 
+#[cfg(feature = "btreemap")]
+pub trait TrieKey: Ord {}
+#[cfg(feature = "btreemap")]
+impl<K> TrieKey for K where K: Ord {}
+
+#[cfg(not(feature = "btreemap"))]
 impl<K, V> SequenceTrie<K, V>
-    where K: TrieKey
+    where K: TrieKey,
 {
     /// Creates a new `SequenceTrie` node with no value and an empty child map.
     pub fn new() -> SequenceTrie<K, V> {
-        Self::with_hasher(RandomState::new())
+        SequenceTrie::with_hasher(RandomState::new())
     }
 }
 
+#[cfg(not(feature = "btreemap"))]
 impl<K, V, S> SequenceTrie<K, V, S>
     where K: TrieKey,
-          S: BuildHasher + Clone
+          S: BuildHasher + Clone,
 {
     pub fn with_hasher(hash_builder: S) -> SequenceTrie<K, V, S> {
         SequenceTrie {
@@ -108,7 +142,37 @@ impl<K, V, S> SequenceTrie<K, V, S>
             children: HashMap::with_hasher(hash_builder),
         }
     }
+}
 
+#[cfg(feature = "btreemap")]
+impl<K, V> SequenceTrie<K, V>
+    where K: TrieKey,
+{
+    /// Creates a new `SequenceTrie` node with no value and an empty child map.
+    pub fn new() -> SequenceTrie<K, V> {
+        Self::new_generic()
+    }
+}
+
+#[cfg(feature = "btreemap")]
+impl<K, V, S> SequenceTrie<K, V, S>
+    where K: TrieKey,
+          S: BuildHasher + Clone,
+{
+    /// Creates a new `SequenceTrie` node with no value and an empty child map.
+    pub fn new_generic() -> SequenceTrie<K, V, S> {
+        SequenceTrie {
+            value: None,
+            children: BTreeMap::new(),
+            _phantom: PhantomData,
+        }
+    }
+}
+
+impl<K, V, S> SequenceTrie<K, V, S>
+    where K: TrieKey,
+          S: BuildHasher + Clone,
+{
     /// Retrieve the value stored at this node.
     pub fn value(&self) -> Option<&V> {
         self.value.as_ref()
@@ -146,6 +210,7 @@ impl<K, V, S> SequenceTrie<K, V, S>
     /// Version of `insert` that takes an owned sequence of key fragments.
     ///
     /// This function is used internally by `insert`.
+    #[cfg(not(feature = "btreemap"))]
     pub fn insert_owned<I>(&mut self, key: I, value: V) -> Option<V>
         where I: IntoIterator<Item = K>
     {
@@ -159,11 +224,24 @@ impl<K, V, S> SequenceTrie<K, V, S>
         mem::replace(&mut key_node.value, Some(value))
     }
 
+    #[cfg(feature = "btreemap")]
+    pub fn insert_owned<I>(&mut self, key: I, value: V) -> Option<V>
+        where I: IntoIterator<Item = K>
+    {
+        let key_node = key.into_iter().fold(self, |current_node, fragment| {
+            current_node.children
+                .entry(fragment)
+                .or_insert_with(Self::new_generic)
+        });
+
+        mem::replace(&mut key_node.value, Some(value))
+    }
+
     /// Finds a reference to a key's value, if it has one.
     pub fn get<'key, I, Q: ?Sized>(&self, key: I) -> Option<&V>
         where I: IntoIterator<Item = &'key Q>,
               K: Borrow<Q>,
-              Q: Hash + Eq + 'key
+              Q: TrieKey + 'key
     {
         self.get_node(key).and_then(|node| node.value.as_ref())
     }
@@ -172,7 +250,7 @@ impl<K, V, S> SequenceTrie<K, V, S>
     pub fn get_node<'key, I, Q: ?Sized>(&self, key: I) -> Option<&SequenceTrie<K, V, S>>
         where I: IntoIterator<Item = &'key Q>,
               K: Borrow<Q>,
-              Q: Hash + Eq + 'key
+              Q: TrieKey + 'key
     {
         let mut current_node = self;
 
@@ -190,7 +268,7 @@ impl<K, V, S> SequenceTrie<K, V, S>
     pub fn get_mut<'key, I, Q: ?Sized>(&mut self, key: I) -> Option<&mut V>
         where I: IntoIterator<Item = &'key Q>,
               K: Borrow<Q>,
-              Q: Hash + Eq + 'key
+              Q: TrieKey + 'key
     {
         self.get_node_mut(key).and_then(|node| node.value.as_mut())
     }
@@ -199,7 +277,7 @@ impl<K, V, S> SequenceTrie<K, V, S>
     pub fn get_node_mut<'key, I, Q: ?Sized>(&mut self, key: I) -> Option<&mut SequenceTrie<K, V, S>>
         where I: IntoIterator<Item = &'key Q>,
               K: Borrow<Q>,
-              Q: Hash + Eq + 'key
+              Q: TrieKey + 'key
     {
         let mut current_node = Some(self);
 
@@ -217,7 +295,7 @@ impl<K, V, S> SequenceTrie<K, V, S>
     pub fn get_prefix_nodes<'key, I, Q: ?Sized>(&self, key: I) -> Vec<&SequenceTrie<K, V, S>>
         where I: 'key + IntoIterator<Item = &'key Q>,
               K: Borrow<Q>,
-              Q: Hash + Eq + 'key
+              Q: TrieKey + 'key
     {
         self.prefix_iter(key).collect()
     }
@@ -228,7 +306,7 @@ impl<K, V, S> SequenceTrie<K, V, S>
     pub fn get_ancestor<'key, I, Q: ?Sized>(&self, key: I) -> Option<&V>
         where I: 'key + IntoIterator<Item = &'key Q>,
               K: Borrow<Q>,
-              Q: Hash + Eq + 'key
+              Q: TrieKey + 'key
     {
         self.get_ancestor_node(key).and_then(|node| node.value.as_ref())
     }
@@ -239,7 +317,7 @@ impl<K, V, S> SequenceTrie<K, V, S>
     pub fn get_ancestor_node<'key, I, Q: ?Sized>(&self, key: I) -> Option<&SequenceTrie<K, V, S>>
         where I: 'key + IntoIterator<Item = &'key Q>,
               K: Borrow<Q>,
-              Q: Hash + Eq + 'key
+              Q: TrieKey + 'key
     {
         self.prefix_iter(key)
             .filter(|node| node.value.is_some())
@@ -260,7 +338,7 @@ impl<K, V, S> SequenceTrie<K, V, S>
     pub fn remove<'key, I, Q: ?Sized>(&mut self, key: I)
         where I: IntoIterator<Item = &'key Q>,
               K: Borrow<Q>,
-              Q: Hash + Eq + 'key
+              Q: TrieKey + 'key
     {
         self.remove_recursive(key);
     }
@@ -274,7 +352,7 @@ impl<K, V, S> SequenceTrie<K, V, S>
     fn remove_recursive<'key, I, Q: ?Sized>(&mut self, key: I) -> bool
         where I: IntoIterator<Item = &'key Q>,
               K: Borrow<Q>,
-              Q: Hash + Eq + 'key
+              Q: TrieKey + 'key
     {
         let mut fragments = key.into_iter();
         match fragments.next() {
@@ -349,7 +427,7 @@ impl<K, V, S> SequenceTrie<K, V, S>
                                                   -> PrefixIter<'trie, 'key, K, V, Q, I::IntoIter, S>
         where I: IntoIterator<Item = &'key Q>,
               K: Borrow<Q>,
-              Q: Hash + Eq + 'key
+              Q: TrieKey + 'key
     {
         PrefixIter {
             next_node: Some(self),
@@ -404,7 +482,10 @@ struct StackItem<'a, K: 'a, V: 'a, S: 'a = RandomState>
     where K: TrieKey,
           S: BuildHasher
 {
+    #[cfg(not(feature = "btreemap"))]
     child_iter: hash_map::Iter<'a, K, SequenceTrie<K, V, S>>,
+    #[cfg(feature = "btreemap")]
+    child_iter: btree_map::Iter<'a, K, SequenceTrie<K, V, S>>,
 }
 
 /// Delayed action type for iteration stack manipulation.
@@ -505,7 +586,10 @@ impl<K, V, S> Default for SequenceTrie<K, V, S>
           S: Default + BuildHasher + Clone
 {
     fn default() -> Self {
-        SequenceTrie::with_hasher(S::default())
+        #[cfg(not(feature = "btreemap"))]
+        { SequenceTrie::with_hasher(S::default()) }
+        #[cfg(feature = "btreemap")]
+        { SequenceTrie::new_generic() }
     }
 }
 
@@ -515,7 +599,7 @@ pub struct PrefixIter<'trie, 'key, K, V, Q: ?Sized, I, S = RandomState>
           V: 'trie,
           I: 'key + Iterator<Item = &'key Q>,
           K: Borrow<Q>,
-          Q: Hash + Eq + 'key,
+          Q: TrieKey + 'key,
           S: 'trie + BuildHasher
 {
     next_node: Option<&'trie SequenceTrie<K, V, S>>,
@@ -528,7 +612,7 @@ impl<'trie, 'key, K, V, Q: ?Sized, I, S> Iterator for PrefixIter<'trie, 'key, K,
           V: 'trie,
           I: 'key + Iterator<Item = &'key Q>,
           K: Borrow<Q>,
-          Q: Hash + Eq + 'key,
+          Q: TrieKey + 'key,
           S: BuildHasher
 {
     type Item = &'trie SequenceTrie<K, V, S>;

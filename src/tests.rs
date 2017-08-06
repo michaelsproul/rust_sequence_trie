@@ -121,7 +121,7 @@ fn key_iter() {
     assert_eq!(exp_keys, obs_keys);
 }
 
-#[derive(PartialEq, Eq, Hash, Clone)]
+#[derive(PartialEq, Eq, Hash, Clone, PartialOrd, Ord)]
 struct Key {
     field: usize,
 }
