@@ -8,6 +8,7 @@ authors = ["Michael Sproul <micsproul@gmail.com>", "Alex Gulyás <gulyas.alex@gm
 
 documentation = "https://docs.rs/sequence_trie/"
 repository = "https://github.com/michaelsproul/rust_sequence_trie"
+readme = "README.md"
 
 keywords = ["trie", "tree", "hash", "data-structure", "collection"]
 
