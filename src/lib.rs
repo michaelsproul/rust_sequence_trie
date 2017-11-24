@@ -19,6 +19,10 @@ use std::borrow::{Borrow, ToOwned};
 use std::mem;
 use std::marker::PhantomData;
 
+#[cfg(feature = "serde")]
+#[macro_use]
+extern crate serde;
+
 #[cfg(test)]
 mod tests;
 
@@ -78,6 +82,8 @@ mod tests;
 /// # The Sequence Trie Invariant
 /// All leaf nodes have non-trivial values (not equal to `None`). This invariant is maintained by
 /// the insertion and removal methods and can be relied upon.
+#[cfg(feature = "serde")]
+#[derive(Serialize, Deserialize)]
 #[derive(Debug, Clone)]
 #[cfg(not(feature = "btreemap"))]
 pub struct SequenceTrie<K, V, S = RandomState>

@@ -17,3 +17,6 @@ name = "sequence_trie"
 
 [features]
 btreemap = []
+
+[dependencies]
+serde = { version = "^1.0", optional = true, features = ["derive"] }
