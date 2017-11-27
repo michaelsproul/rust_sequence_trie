@@ -82,13 +82,12 @@ mod tests;
 /// # The Sequence Trie Invariant
 /// All leaf nodes have non-trivial values (not equal to `None`). This invariant is maintained by
 /// the insertion and removal methods and can be relied upon.
-#[cfg(feature = "serde")]
-#[derive(Serialize, Deserialize)]
 #[derive(Debug, Clone)]
 #[cfg(not(feature = "btreemap"))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct SequenceTrie<K, V, S = RandomState>
     where K: TrieKey,
-          S: BuildHasher,
+          S: BuildHasher + Default,
 {
     /// Node value.
     value: Option<V>,
@@ -99,9 +98,10 @@ pub struct SequenceTrie<K, V, S = RandomState>
 
 #[derive(Debug, Clone)]
 #[cfg(feature = "btreemap")]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct SequenceTrie<K, V, S = RandomState>
     where K: TrieKey,
-          S: BuildHasher,
+          S: BuildHasher + Default,
 {
     /// Node value.
     value: Option<V>,
@@ -140,7 +140,7 @@ impl<K, V> SequenceTrie<K, V>
 #[cfg(not(feature = "btreemap"))]
 impl<K, V, S> SequenceTrie<K, V, S>
     where K: TrieKey,
-          S: BuildHasher + Clone,
+          S: BuildHasher + Default + Clone,
 {
     pub fn with_hasher(hash_builder: S) -> SequenceTrie<K, V, S> {
         SequenceTrie {
@@ -163,7 +163,7 @@ impl<K, V> SequenceTrie<K, V>
 #[cfg(feature = "btreemap")]
 impl<K, V, S> SequenceTrie<K, V, S>
     where K: TrieKey,
-          S: BuildHasher + Clone,
+          S: BuildHasher + Default + Clone,
 {
     /// Creates a new `SequenceTrie` node with no value and an empty child map.
     pub fn new_generic() -> SequenceTrie<K, V, S> {
@@ -177,7 +177,7 @@ impl<K, V, S> SequenceTrie<K, V, S>
 
 impl<K, V, S> SequenceTrie<K, V, S>
     where K: TrieKey,
-          S: BuildHasher + Clone,
+          S: BuildHasher + Default + Clone,
 {
     /// Retrieve the value stored at this node.
     pub fn value(&self) -> Option<&V> {
@@ -456,7 +456,7 @@ impl<K, V, S> SequenceTrie<K, V, S>
 /// Iterator over the keys and values of a `SequenceTrie`.
 pub struct Iter<'a, K: 'a, V: 'a, S: 'a = RandomState>
     where K: TrieKey,
-          S: BuildHasher
+          S: BuildHasher + Default
 {
     root: &'a SequenceTrie<K, V, S>,
     root_visited: bool,
@@ -470,7 +470,7 @@ pub type KeyValuePair<'a, K, V> = (Vec<&'a K>, &'a V);
 /// Iterator over the keys of a `SequenceTrie`.
 pub struct Keys<'a, K: 'a, V: 'a, S: 'a = RandomState>
     where K: TrieKey,
-          S: BuildHasher
+          S: BuildHasher + Default
 {
     inner: Iter<'a, K, V, S>,
 }
@@ -478,7 +478,7 @@ pub struct Keys<'a, K: 'a, V: 'a, S: 'a = RandomState>
 /// Iterator over the values of a `SequenceTrie`.
 pub struct Values<'a, K: 'a, V: 'a, S: 'a = RandomState>
     where K: TrieKey,
-          S: BuildHasher
+          S: BuildHasher + Default
 {
     inner: Iter<'a, K, V, S>,
 }
@@ -486,7 +486,7 @@ pub struct Values<'a, K: 'a, V: 'a, S: 'a = RandomState>
 /// Information stored on the iteration stack whilst exploring.
 struct StackItem<'a, K: 'a, V: 'a, S: 'a = RandomState>
     where K: TrieKey,
-          S: BuildHasher
+          S: BuildHasher + Default
 {
     #[cfg(not(feature = "btreemap"))]
     child_iter: hash_map::Iter<'a, K, SequenceTrie<K, V, S>>,
@@ -497,7 +497,7 @@ struct StackItem<'a, K: 'a, V: 'a, S: 'a = RandomState>
 /// Delayed action type for iteration stack manipulation.
 enum IterAction<'a, K: 'a, V: 'a, S: 'a>
     where K: TrieKey,
-          S: BuildHasher
+          S: BuildHasher + Default
 {
     Push(&'a K, &'a SequenceTrie<K, V, S>),
     Pop,
@@ -505,7 +505,7 @@ enum IterAction<'a, K: 'a, V: 'a, S: 'a>
 
 impl<'a, K, V, S> Iterator for Iter<'a, K, V, S>
     where K: TrieKey,
-          S: BuildHasher
+          S: BuildHasher + Default
 {
     type Item = KeyValuePair<'a, K, V>;
 
@@ -551,7 +551,7 @@ impl<'a, K, V, S> Iterator for Iter<'a, K, V, S>
 
 impl<'a, K, V, S> Iterator for Keys<'a, K, V, S>
     where K: TrieKey,
-          S: BuildHasher,
+          S: BuildHasher + Default,
 {
     type Item = Vec<&'a K>;
 
@@ -562,7 +562,7 @@ impl<'a, K, V, S> Iterator for Keys<'a, K, V, S>
 
 impl<'a, K, V, S> Iterator for Values<'a, K, V, S>
     where K: TrieKey,
-          S: BuildHasher
+          S: BuildHasher + Default
 {
     type Item = &'a V;
 
@@ -574,7 +574,7 @@ impl<'a, K, V, S> Iterator for Values<'a, K, V, S>
 impl<K, V, S> PartialEq for SequenceTrie<K, V, S>
     where K: TrieKey,
           V: PartialEq,
-          S: BuildHasher
+          S: BuildHasher + Default
 {
     fn eq(&self, other: &Self) -> bool {
         self.value == other.value && self.children == other.children
@@ -584,12 +584,12 @@ impl<K, V, S> PartialEq for SequenceTrie<K, V, S>
 impl<K, V, S> Eq for SequenceTrie<K, V, S>
     where K: TrieKey,
           V: Eq,
-          S: BuildHasher
+          S: BuildHasher + Default
 {}
 
 impl<K, V, S> Default for SequenceTrie<K, V, S>
     where K: TrieKey,
-          S: Default + BuildHasher + Clone
+          S: Default + BuildHasher + Default + Clone
 {
     fn default() -> Self {
         #[cfg(not(feature = "btreemap"))]
@@ -606,7 +606,7 @@ pub struct PrefixIter<'trie, 'key, K, V, Q: ?Sized, I, S = RandomState>
           I: 'key + Iterator<Item = &'key Q>,
           K: Borrow<Q>,
           Q: TrieKey + 'key,
-          S: 'trie + BuildHasher
+          S: 'trie + BuildHasher + Default
 {
     next_node: Option<&'trie SequenceTrie<K, V, S>>,
     fragments: I,
@@ -619,7 +619,7 @@ impl<'trie, 'key, K, V, Q: ?Sized, I, S> Iterator for PrefixIter<'trie, 'key, K,
           I: 'key + Iterator<Item = &'key Q>,
           K: Borrow<Q>,
           Q: TrieKey + 'key,
-          S: BuildHasher
+          S: BuildHasher + Default
 {
     type Item = &'trie SequenceTrie<K, V, S>;
 
