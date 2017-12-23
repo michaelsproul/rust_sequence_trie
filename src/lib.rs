@@ -20,8 +20,12 @@ use std::mem;
 use std::marker::PhantomData;
 
 #[cfg(feature = "serde")]
+use serde::{Serialize, Deserialize};
+
+#[cfg(feature = "serde")]
 #[macro_use]
 extern crate serde;
+
 
 #[cfg(test)]
 mod tests;
@@ -85,6 +89,9 @@ mod tests;
 #[derive(Debug, Clone)]
 #[cfg(not(feature = "btreemap"))]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", serde(bound(serialize = "K: Serialize, V: Serialize")))]
+#[cfg_attr(feature = "serde",
+    serde(bound(deserialize = "K: Deserialize<'de>, V: Deserialize<'de>")))]
 pub struct SequenceTrie<K, V, S = RandomState>
     where K: TrieKey,
           S: BuildHasher + Default,
@@ -99,6 +106,9 @@ pub struct SequenceTrie<K, V, S = RandomState>
 #[derive(Debug, Clone)]
 #[cfg(feature = "btreemap")]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", serde(bound(serialize = "K: Serialize, V: Serialize")))]
+#[cfg_attr(feature = "serde",
+    serde(bound(deserialize = "K: Deserialize<'de>, V: Deserialize<'de>")))]
 pub struct SequenceTrie<K, V, S = RandomState>
     where K: TrieKey,
           S: BuildHasher + Default,
@@ -110,6 +120,7 @@ pub struct SequenceTrie<K, V, S = RandomState>
     children: BTreeMap<K, SequenceTrie<K, V, S>>,
 
     /// Fake hasher for compatibility.
+    #[cfg_attr(feature = "serde", serde(skip))]
     _phantom: PhantomData<S>,
 }
 
@@ -589,7 +600,7 @@ impl<K, V, S> Eq for SequenceTrie<K, V, S>
 
 impl<K, V, S> Default for SequenceTrie<K, V, S>
     where K: TrieKey,
-          S: Default + BuildHasher + Default + Clone
+          S: BuildHasher + Default + Clone
 {
     fn default() -> Self {
         #[cfg(not(feature = "btreemap"))]
