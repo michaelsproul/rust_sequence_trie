@@ -26,9 +26,10 @@ use serde::{Serialize, Deserialize};
 #[macro_use]
 extern crate serde;
 
-
 #[cfg(test)]
 mod tests;
+#[cfg(all(test, feature = "serde"))]
+mod serde_tests;
 
 /// A `SequenceTrie` is recursively defined as a value and a map containing child Tries.
 ///
@@ -131,12 +132,12 @@ pub struct SequenceTrie<K, V, S = RandomState>
 #[cfg(not(feature = "btreemap"))]
 pub trait TrieKey: Eq + Hash {}
 #[cfg(not(feature = "btreemap"))]
-impl<K> TrieKey for K where K: Eq + Hash {}
+impl<K> TrieKey for K where K: Eq + Hash + ?Sized {}
 
 #[cfg(feature = "btreemap")]
 pub trait TrieKey: Ord {}
 #[cfg(feature = "btreemap")]
-impl<K> TrieKey for K where K: Ord {}
+impl<K> TrieKey for K where K: Ord + ?Sized {}
 
 #[cfg(not(feature = "btreemap"))]
 impl<K, V> SequenceTrie<K, V>
