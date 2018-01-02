@@ -3,4 +3,7 @@ os:
   - linux
 script:
   - cargo test --verbose
+  - cargo test --verbose --features=serde
+  - cargo test --verbose --features=btreemap
+  - cargo test --verbose --features=serde,btreemap
   - cargo doc --no-deps
