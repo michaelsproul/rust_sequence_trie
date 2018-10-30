@@ -1,6 +1,6 @@
 [package]
 name = "sequence_trie"
-version = "0.3.5"
+version = "0.3.6"
 description = "Trie-like data-structure for storing sequences of values."
 
 license = "MIT/Apache-2.0"
@@ -27,3 +27,6 @@ serde_json = "^1.0"
 [[example]]
 name = "json"
 required-features = ["serde"]
+
+[[example]]
+name = "debug"
